@@ -157,11 +157,11 @@ export const PaintUniverseWorld: React.FC<PaintUniverseProps> = ({ onReturn, onO
     container.addEventListener('click', onClick);
 
     let animId: number;
-    let clock = new THREE.Clock();
+    const startTime = performance.now();
 
     const animate = () => {
       animId = requestAnimationFrame(animate);
-      const time = clock.getElapsedTime();
+      const time = (performance.now() - startTime) / 1000;
 
       // Swirl paint particles
       particles.rotation.y = time * 0.05;

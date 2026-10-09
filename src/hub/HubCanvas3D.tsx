@@ -164,11 +164,11 @@ export const HubCanvas3D: React.FC<HubCanvas3DProps> = ({
 
     // Render Loop
     let animId: number;
-    let clock = new THREE.Clock();
+    const startTime = performance.now();
 
     const animate = () => {
       animId = requestAnimationFrame(animate);
-      const time = clock.getElapsedTime();
+      const time = (performance.now() - startTime) / 1000;
 
       // Slow orbital sway
       particles.rotation.y = time * 0.02;

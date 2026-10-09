@@ -130,11 +130,11 @@ export const InkDimensionWorld: React.FC<InkDimensionProps> = ({ onReturn, onOpe
     container.addEventListener('click', onClick);
 
     let animId: number;
-    let clock = new THREE.Clock();
+    const startTime = performance.now();
 
     const animate = () => {
       animId = requestAnimationFrame(animate);
-      const t = clock.getElapsedTime();
+      const t = (performance.now() - startTime) / 1000;
 
       // Slow downward ink drift
       const positions = dropGeo.attributes.position.array as Float32Array;

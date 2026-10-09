@@ -41,7 +41,7 @@ export function App() {
   const [transitioning, setTransitioning] = useState<boolean>(false);
   const [pendingWorld, setPendingWorld] = useState<WorldConfig | null>(null);
   const [showAudioAlert, setShowAudioAlert] = useState<boolean>(true);
-  const [isAudioMuted, setIsAudioMuted] = useState<boolean>(false);
+  const [isAudioMuted, setIsAudioMuted] = useState<boolean>(true);
   const [commissionOpen, setCommissionOpen] = useState<boolean>(false);
   const [commissionWorldTarget, setCommissionWorldTarget] = useState<string>('Custom Creative Showcase');
 

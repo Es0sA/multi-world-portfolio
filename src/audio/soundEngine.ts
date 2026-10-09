@@ -3,7 +3,7 @@
 
 class SoundEngine {
   private ctx: AudioContext | null = null;
-  private isMuted: boolean = false;
+  private isMuted: boolean = true;
   private ambientOsc1: OscillatorNode | null = null;
   private ambientOsc2: OscillatorNode | null = null;
   private ambientGain: GainNode | null = null;
@@ -52,6 +52,10 @@ class SoundEngine {
 
   // Set continuous procedural ambient drone according to world mood
   public setAmbientMood(mood: string) {
+    if (this.isMuted) {
+      this.activeMood = mood;
+      return;
+    }
     this.init();
     if (!this.ctx) return;
     this.activeMood = mood;

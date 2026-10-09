@@ -159,11 +159,11 @@ export const CircuitCityWorld: React.FC<CircuitCityProps> = ({ onReturn, onOpenC
     container.addEventListener('click', onClick);
 
     let animId: number;
-    let clock = new THREE.Clock();
+    const startTime = performance.now();
 
     const animate = () => {
       animId = requestAnimationFrame(animate);
-      const t = clock.getElapsedTime();
+      const t = (performance.now() - startTime) / 1000;
 
       chipMeshes.forEach(({ mesh, project }) => {
         const isSelected = selectedChip?.id === project.id;
