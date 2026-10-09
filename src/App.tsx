@@ -39,6 +39,7 @@ const InkDimensionWorld = lazy(() =>
 export function App() {
   const [activeWorld, setActiveWorld] = useState<WorldConfig | null>(null);
   const [transitioning, setTransitioning] = useState<boolean>(false);
+  const [transitionDirection, setTransitionDirection] = useState<'enter' | 'return'>('enter');
   const [pendingWorld, setPendingWorld] = useState<WorldConfig | null>(null);
   const [showAudioAlert, setShowAudioAlert] = useState<boolean>(true);
   const [isAudioMuted, setIsAudioMuted] = useState<boolean>(true);
@@ -110,6 +111,7 @@ export function App() {
   const handleSelectWorld = (world: WorldConfig) => {
     if (transitioning) return;
     setPendingWorld(world);
+    setTransitionDirection('enter');
     setTransitioning(true);
 
     setTimeout(() => {
@@ -125,6 +127,7 @@ export function App() {
 
   const handleReturnToHub = () => {
     if (transitioning) return;
+    setTransitionDirection('return');
     setTransitioning(true);
     setTimeout(() => {
       setActiveWorld(null);
@@ -155,8 +158,9 @@ export function App() {
       {/* Cinematic Warp Transition Overlay */}
       <TransitionOverlay
         isActive={transitioning}
-        accentColor={pendingWorld?.accentColor || activeWorld?.accentColor || '#6366f1'}
-        worldName={pendingWorld?.name || 'Sanctum Hub'}
+        accentColor={transitionDirection === 'return' ? '#7cf4ff' : (pendingWorld?.accentColor || activeWorld?.accentColor || '#6366f1')}
+        worldName={transitionDirection === 'return' ? 'Sanctum Hub' : (pendingWorld?.name || 'Sanctum Hub')}
+        subtext={transitionDirection === 'return' ? 'Returning to Sanctum Hub' : 'Entering Universe'}
       />
 
       {/* Global Commission Modal targeting esosaosaretin@gmail.com */}

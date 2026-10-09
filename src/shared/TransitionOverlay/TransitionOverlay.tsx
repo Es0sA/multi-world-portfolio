@@ -5,12 +5,14 @@ interface TransitionOverlayProps {
   isActive: boolean;
   accentColor: string;
   worldName: string;
+  subtext?: string;
 }
 
 export const TransitionOverlay: React.FC<TransitionOverlayProps> = ({ 
   isActive, 
   accentColor, 
-  worldName 
+  worldName,
+  subtext = 'Entering Universe'
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -96,7 +98,7 @@ export const TransitionOverlay: React.FC<TransitionOverlayProps> = ({
     <div className={styles.container} role="status" aria-live="polite">
       <canvas ref={canvasRef} className={styles.canvas} />
       <div className={styles.textWrap}>
-        <span className={styles.subtext}>Entering Universe</span>
+        <span className={styles.subtext}>{subtext}</span>
         <h2 className={styles.title} style={{ color: accentColor }}>{worldName}</h2>
         <div className={styles.loaderBar}>
           <div className={styles.loaderFill} style={{ backgroundColor: accentColor }} />
