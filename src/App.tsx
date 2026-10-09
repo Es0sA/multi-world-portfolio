@@ -49,11 +49,12 @@ export function App() {
   useEffect(() => {
     const handlePopState = () => {
       const path = window.location.pathname;
-      if (path === '/' || path === '') {
+      const cleanPath = path.replace('/multi-world-portfolio', '');
+      if (cleanPath === '/' || cleanPath === '') {
         setActiveWorld(null);
         soundEngine.setAmbientMood('hub');
       } else {
-        const slug = path.replace('/worlds/', '').replace('/', '');
+        const slug = cleanPath.replace('/worlds/', '').replace('/', '');
         const found = HUB_WORLDS.find((w) => w.slug === slug);
         if (found) {
           setActiveWorld(found);
@@ -106,7 +107,8 @@ export function App() {
 
     setTimeout(() => {
       setActiveWorld(world);
-      window.history.pushState(null, '', `/worlds/${world.slug}`);
+      const basePath = window.location.pathname.startsWith('/multi-world-portfolio') ? '/multi-world-portfolio' : '';
+      window.history.pushState(null, '', `${basePath}/worlds/${world.slug}`);
       setTimeout(() => {
         setTransitioning(false);
         setPendingWorld(null);
@@ -118,7 +120,8 @@ export function App() {
     setTransitioning(true);
     setTimeout(() => {
       setActiveWorld(null);
-      window.history.pushState(null, '', '/');
+      const basePath = window.location.pathname.startsWith('/multi-world-portfolio') ? '/multi-world-portfolio' : '';
+      window.history.pushState(null, '', `${basePath}/`);
       soundEngine.setAmbientMood('hub');
       setTimeout(() => {
         setTransitioning(false);
