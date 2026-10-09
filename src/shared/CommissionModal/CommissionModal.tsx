@@ -14,6 +14,24 @@ export const CommissionModal: React.FC<CommissionModalProps> = ({ isOpen, onClos
   const [notes, setNotes] = React.useState<string>('');
   const [copied, setCopied] = React.useState<boolean>(false);
 
+  React.useEffect(() => {
+    if (isOpen && worldName) {
+      setSelectedStyle(worldName);
+    }
+  }, [isOpen, worldName]);
+
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const targetEmail = 'esosaosaretin@gmail.com';
@@ -30,9 +48,13 @@ export const CommissionModal: React.FC<CommissionModalProps> = ({ isOpen, onClos
   const mailtoUrl = `mailto:${targetEmail}?subject=${mailtoSubject}&body=${mailtoBody}`;
 
   const copyEmail = () => {
-    navigator.clipboard.writeText(targetEmail);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    navigator.clipboard.writeText(targetEmail).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }).catch(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
   };
 
   return (

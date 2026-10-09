@@ -68,16 +68,22 @@ export function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  // Keyboard shortcut: Escape returns to Hub
+  // Keyboard shortcut: Escape returns to Hub (unless a modal is open)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && activeWorld) {
-        handleReturnToHub();
+      if (e.key === 'Escape') {
+        if (commissionOpen) {
+          setCommissionOpen(false);
+          return;
+        }
+        if (activeWorld && !transitioning) {
+          handleReturnToHub();
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeWorld]);
+  }, [activeWorld, commissionOpen, transitioning]);
 
   const handleEnableAudio = () => {
     soundEngine.init();
@@ -102,6 +108,7 @@ export function App() {
   };
 
   const handleSelectWorld = (world: WorldConfig) => {
+    if (transitioning) return;
     setPendingWorld(world);
     setTransitioning(true);
 
@@ -117,6 +124,7 @@ export function App() {
   };
 
   const handleReturnToHub = () => {
+    if (transitioning) return;
     setTransitioning(true);
     setTimeout(() => {
       setActiveWorld(null);

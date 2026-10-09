@@ -272,12 +272,14 @@ export const TerminalOfficeWorld: React.FC<TerminalOfficeProps> = ({ onReturn, o
                     }}
                     onKeyDown={(e) => {
                       if (e.key === 'ArrowUp') {
+                        e.preventDefault();
                         if (history.length > 0) {
                           const nextIdx = historyIndex === -1 ? history.length - 1 : Math.max(0, historyIndex - 1);
                           setHistoryIndex(nextIdx);
                           setInputVal(history[nextIdx] || '');
                         }
                       } else if (e.key === 'ArrowDown') {
+                        e.preventDefault();
                         if (historyIndex !== -1) {
                           const nextIdx = historyIndex + 1;
                           if (nextIdx >= history.length) {

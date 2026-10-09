@@ -179,13 +179,34 @@ export const PaintUniverseWorld: React.FC<PaintUniverseProps> = ({ onReturn, onO
 
     animate();
 
+    const onResize = () => {
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      if (h <= 0) return;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+    };
+    window.addEventListener('resize', onResize);
+
     return () => {
       cancelAnimationFrame(animId);
+      window.removeEventListener('resize', onResize);
       container.removeEventListener('pointermove', onPointerMove);
       container.removeEventListener('click', onClick);
       if (renderer.domElement.parentElement) {
         renderer.domElement.parentElement.removeChild(renderer.domElement);
       }
+      scene.traverse((obj) => {
+        if (obj instanceof THREE.Mesh || obj instanceof THREE.Points) {
+          obj.geometry?.dispose();
+          if (Array.isArray(obj.material)) {
+            obj.material.forEach((m) => m.dispose());
+          } else if (obj.material) {
+            obj.material.dispose();
+          }
+        }
+      });
       renderer.dispose();
       scene.clear();
     };

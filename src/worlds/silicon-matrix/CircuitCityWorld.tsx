@@ -17,6 +17,11 @@ export const CircuitCityWorld: React.FC<CircuitCityProps> = ({ onReturn, onOpenC
   const [selectedChip, setSelectedChip] = useState<ProjectItem | null>(siliconData.projects[0]);
   const [viewMode, setViewMode] = useState<'3d' | 'archive'>('3d');
   const mountRef = useRef<HTMLDivElement | null>(null);
+  const selectedChipRef = useRef<ProjectItem | null>(selectedChip);
+
+  useEffect(() => {
+    selectedChipRef.current = selectedChip;
+  }, [selectedChip]);
 
   useEffect(() => {
     soundEngine.setAmbientMood('silicon-matrix');
@@ -166,7 +171,7 @@ export const CircuitCityWorld: React.FC<CircuitCityProps> = ({ onReturn, onOpenC
       const t = (performance.now() - startTime) / 1000;
 
       chipMeshes.forEach(({ mesh, project }) => {
-        const isSelected = selectedChip?.id === project.id;
+        const isSelected = selectedChipRef.current?.id === project.id;
         if (isSelected) {
           mesh.position.y = 0.25 + Math.sin(t * 3) * 0.05;
         } else {
@@ -182,17 +187,41 @@ export const CircuitCityWorld: React.FC<CircuitCityProps> = ({ onReturn, onOpenC
 
     animate();
 
+    const onResize = () => {
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      if (h <= 0) return;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+    };
+    window.addEventListener('resize', onResize);
+
     return () => {
       cancelAnimationFrame(animId);
+      window.removeEventListener('resize', onResize);
       container.removeEventListener('pointermove', onPointerMove);
       container.removeEventListener('click', onClick);
       if (renderer.domElement.parentElement) {
         renderer.domElement.parentElement.removeChild(renderer.domElement);
       }
+      pcbGeo.dispose();
+      pcbMat.dispose();
+      traceMaterial.dispose();
+      scene.traverse((obj) => {
+        if (obj instanceof THREE.Mesh) {
+          obj.geometry?.dispose();
+          if (Array.isArray(obj.material)) {
+            obj.material.forEach((m) => m.dispose());
+          } else if (obj.material) {
+            obj.material.dispose();
+          }
+        }
+      });
       renderer.dispose();
       scene.clear();
     };
-  }, [viewMode, selectedChip]);
+  }, [viewMode]);
 
   return (
     <div className={styles.siliconScope}>

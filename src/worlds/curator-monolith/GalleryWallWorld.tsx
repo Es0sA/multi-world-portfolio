@@ -20,6 +20,18 @@ export const GalleryWallWorld: React.FC<GalleryWallProps> = ({ onReturn, onOpenC
     soundEngine.setAmbientMood('curator-monolith');
   }, []);
 
+  useEffect(() => {
+    if (!selectedPrint) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        setSelectedPrint(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedPrint]);
+
   const openLightbox = (proj: ProjectItem) => {
     soundEngine.playPortalHover();
     setSelectedPrint(proj);

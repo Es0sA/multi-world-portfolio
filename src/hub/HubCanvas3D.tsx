@@ -56,7 +56,7 @@ export const HubCanvas3D: React.FC<HubCanvas3DProps> = ({
     const startAngle = -angleSpan / 2;
 
     worlds.forEach((world, index) => {
-      const angle = startAngle + (index / (worlds.length - 1)) * angleSpan;
+      const angle = worlds.length === 1 ? 0 : startAngle + (index / (worlds.length - 1)) * angleSpan;
       const x = Math.sin(angle) * radius;
       const z = -Math.cos(angle) * radius + 3.2;
 
@@ -188,11 +188,14 @@ export const HubCanvas3D: React.FC<HubCanvas3DProps> = ({
         }
       }
 
-      setHoveredWorldId(hitWorldId);
+      if (hitWorldId !== lastReportedId) {
+        lastReportedId = hitWorldId;
+        setHoveredWorldId(hitWorldId);
+      }
 
       // Animate portals
       portalMeshes.forEach(({ mesh, world }) => {
-        const isHovered = world.id === hitWorldId;
+        const isHovered = world.id === (hitWorldId || hoveredWorldId);
         const targetScale = isHovered ? 1.08 : 1.0;
         mesh.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.1);
         mesh.position.y = 0.2 + (isHovered ? Math.sin(time * 3) * 0.05 : 0);
@@ -205,6 +208,7 @@ export const HubCanvas3D: React.FC<HubCanvas3DProps> = ({
       renderer.render(scene, camera);
     };
 
+    let lastReportedId: string | null = null;
     animate();
 
     return () => {
@@ -215,10 +219,24 @@ export const HubCanvas3D: React.FC<HubCanvas3DProps> = ({
       if (renderer.domElement.parentElement) {
         renderer.domElement.parentElement.removeChild(renderer.domElement);
       }
+      particleGeo.dispose();
+      particleMat.dispose();
+      gridHelper.geometry.dispose();
+      (gridHelper.material as THREE.Material).dispose();
+      portalsGroup.traverse((obj) => {
+        if (obj instanceof THREE.Mesh) {
+          obj.geometry?.dispose();
+          if (Array.isArray(obj.material)) {
+            obj.material.forEach((m) => m.dispose());
+          } else if (obj.material) {
+            obj.material.dispose();
+          }
+        }
+      });
       renderer.dispose();
       scene.clear();
     };
-  }, [worlds, onSelectWorld, setHoveredWorldId]);
+  }, [worlds, onSelectWorld, setHoveredWorldId, hoveredWorldId]);
 
   return <div ref={mountRef} style={{ width: '100%', height: '100%', position: 'absolute', inset: 0 }} />;
 };

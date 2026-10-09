@@ -17,6 +17,11 @@ export const InkDimensionWorld: React.FC<InkDimensionProps> = ({ onReturn, onOpe
   const [selectedScene, setSelectedScene] = useState<ProjectItem | null>(monochromeData.projects[0]);
   const [viewMode, setViewMode] = useState<'3d' | 'archive'>('3d');
   const mountRef = useRef<HTMLDivElement | null>(null);
+  const selectedSceneRef = useRef<ProjectItem | null>(selectedScene);
+
+  useEffect(() => {
+    selectedSceneRef.current = selectedScene;
+  }, [selectedScene]);
 
   useEffect(() => {
     soundEngine.setAmbientMood('monochrome-rift');
@@ -147,7 +152,7 @@ export const InkDimensionWorld: React.FC<InkDimensionProps> = ({ onReturn, onOpe
       // Animate ink monoliths
       sculptureMeshes.forEach(({ mesh, project }) => {
         mesh.rotation.y = t * 0.3;
-        const isSel = selectedScene?.id === project.id;
+        const isSel = selectedSceneRef.current?.id === project.id;
         mesh.position.y = isSel ? Math.sin(t * 2) * 0.15 : 0;
       });
 
@@ -156,17 +161,40 @@ export const InkDimensionWorld: React.FC<InkDimensionProps> = ({ onReturn, onOpe
 
     animate();
 
+    const onResize = () => {
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      if (h <= 0) return;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+    };
+    window.addEventListener('resize', onResize);
+
     return () => {
       cancelAnimationFrame(animId);
+      window.removeEventListener('resize', onResize);
       container.removeEventListener('pointermove', onPointerMove);
       container.removeEventListener('click', onClick);
       if (renderer.domElement.parentElement) {
         renderer.domElement.parentElement.removeChild(renderer.domElement);
       }
+      dropGeo.dispose();
+      dropMat.dispose();
+      scene.traverse((obj) => {
+        if (obj instanceof THREE.Mesh) {
+          obj.geometry?.dispose();
+          if (Array.isArray(obj.material)) {
+            obj.material.forEach((m) => m.dispose());
+          } else if (obj.material) {
+            obj.material.dispose();
+          }
+        }
+      });
       renderer.dispose();
       scene.clear();
     };
-  }, [viewMode, selectedScene]);
+  }, [viewMode]);
 
   return (
     <div className={styles.inkScope}>

@@ -37,8 +37,9 @@ export const HubView: React.FC<HubViewProps> = ({
   const [hoveredWorldId, setHoveredWorldId] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<'all' | 'developer' | 'designer' | 'illustrator'>('all');
 
-  const filteredWorlds = HUB_WORLDS.filter(
-    (w) => activeFilter === 'all' || w.field === activeFilter
+  const filteredWorlds = React.useMemo(
+    () => HUB_WORLDS.filter((w) => activeFilter === 'all' || w.field === activeFilter),
+    [activeFilter]
   );
 
   const hoveredWorld = HUB_WORLDS.find((w) => w.id === hoveredWorldId);
@@ -63,10 +64,10 @@ export const HubView: React.FC<HubViewProps> = ({
     soundEngine.playPortalHover();
   };
 
-  const handleWorldClick = (world: WorldConfig) => {
+  const handleWorldClick = React.useCallback((world: WorldConfig) => {
     soundEngine.playPortalWarp();
     onSelectWorld(world);
-  };
+  }, [onSelectWorld]);
 
   return (
     <main className={styles.hubContainer}>

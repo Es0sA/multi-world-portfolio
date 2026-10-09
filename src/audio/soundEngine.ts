@@ -8,6 +8,7 @@ class SoundEngine {
   private ambientOsc2: OscillatorNode | null = null;
   private ambientGain: GainNode | null = null;
   private activeMood: string = 'silent';
+  private fadeTimeoutId: number | null = null;
 
   constructor() {
     // Lazy initialized on first user gesture
@@ -65,16 +66,22 @@ class SoundEngine {
       try {
         this.ambientGain.gain.setValueAtTime(this.ambientGain.gain.value, this.ctx.currentTime);
         this.ambientGain.gain.linearRampToValueAtTime(0.0001, this.ctx.currentTime + 0.5);
-        setTimeout(() => {
+        if (this.fadeTimeoutId !== null) {
+          clearTimeout(this.fadeTimeoutId);
+          this.fadeTimeoutId = null;
+        }
+        this.fadeTimeoutId = window.setTimeout(() => {
           if (this.ambientOsc1) {
-            this.ambientOsc1.stop();
-            this.ambientOsc1.disconnect();
+            try { this.ambientOsc1.stop(); this.ambientOsc1.disconnect(); } catch {}
             this.ambientOsc1 = null;
           }
           if (this.ambientOsc2) {
-            this.ambientOsc2.stop();
-            this.ambientOsc2.disconnect();
+            try { this.ambientOsc2.stop(); this.ambientOsc2.disconnect(); } catch {}
             this.ambientOsc2 = null;
+          }
+          if (this.ambientGain) {
+            try { this.ambientGain.disconnect(); } catch {}
+            this.ambientGain = null;
           }
           if (this.activeMood === mood) {
             this.startNewAmbient(mood);
@@ -92,6 +99,10 @@ class SoundEngine {
     if (!this.ctx || mood === 'silent') return;
 
     try {
+      if (this.ambientGain) {
+        try { this.ambientGain.disconnect(); } catch {}
+        this.ambientGain = null;
+      }
       const master = this.ctx.createGain();
       const initialVol = this.isMuted ? 0.0001 : 0.07;
       master.gain.setValueAtTime(0.0001, this.ctx.currentTime);
