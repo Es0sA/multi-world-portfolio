@@ -5,6 +5,9 @@ import styles from './gallery.module.css';
 interface GalleryWallWorldProps {
   onReturn: () => void;
   onOpenCommission: (worldName?: string) => void;
+  arrivedFromPortal?: boolean;
+  portalCoords?: { x: number; y: number; color: [number, number, number] };
+  onReturnWithPortal?: (coords: { x: number; y: number; color: [number, number, number] }) => void;
 }
 
 interface GalleryProject {
@@ -311,7 +314,13 @@ function makeArt(i: number, ar: number, uid: string) {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Artwork">${inner}</svg>`;
 }
 
-export const GalleryWallWorld: React.FC<GalleryWallWorldProps> = ({ onReturn, onOpenCommission }) => {
+export const GalleryWallWorld: React.FC<GalleryWallWorldProps> = ({ 
+  onReturn, 
+  onOpenCommission,
+  arrivedFromPortal = true,
+  portalCoords = { x: 0.5, y: 0.5, color: [240, 240, 240] },
+  onReturnWithPortal
+}) => {
   const [introLeave, setIntroLeave] = useState<boolean>(false);
   const [introRemoved, setIntroRemoved] = useState<boolean>(false);
   const [isReady, setIsReady] = useState<boolean>(false);
@@ -320,18 +329,33 @@ export const GalleryWallWorld: React.FC<GalleryWallWorldProps> = ({ onReturn, on
   const [progressVisible, setProgressVisible] = useState<boolean>(false);
   const [currentProgressIndex, setCurrentProgressIndex] = useState<number>(0);
   const [visibleItems, setVisibleItems] = useState<Record<number, boolean>>({});
+  const [irisVisible, setIrisVisible] = useState<boolean>(false);
 
   const wallRef = useRef<HTMLDivElement | null>(null);
   const spotRef = useRef<HTMLDivElement | null>(null);
   const lbArtRef = useRef<HTMLDivElement | null>(null);
   const lbInfoRef = useRef<HTMLElement | null>(null);
+  const irisRef = useRef<HTMLDivElement | null>(null);
   const worksRef = useRef<(HTMLElement | null)[]>([]);
+  const leavingRef = useRef<boolean>(false);
 
   const pad = (n: number) => String(n).padStart(2, '0');
 
   useEffect(() => {
     soundEngine.setAmbientMood('curator-monolith');
   }, []);
+
+  const dmax = (x: number, y: number) =>
+    2 * Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y)) + 60;
+
+  const setIrisStyle = (x: number, y: number, D: number) => {
+    const iris = irisRef.current;
+    if (!iris) return;
+    iris.style.left = `${x}px`;
+    iris.style.top = `${y}px`;
+    iris.style.width = `${D}px`;
+    iris.style.height = `${D}px`;
+  };
 
   const handleDismissIntro = useCallback(() => {
     if (introLeave) return;
@@ -344,13 +368,84 @@ export const GalleryWallWorld: React.FC<GalleryWallWorldProps> = ({ onReturn, on
     }, 1900);
   }, [introLeave]);
 
-  // Auto lift curtain after 3s if not clicked
+  // Arriving through portal: opening circular hole
   useEffect(() => {
-    const timer = setTimeout(() => {
-      handleDismissIntro();
-    }, 3000);
-    return () => clearTimeout(timer);
-  }, [handleDismissIntro]);
+    const pc = portalCoords.color;
+    const lum = 0.299 * pc[0] + 0.587 * pc[1] + 0.114 * pc[2];
+    document.documentElement.style.setProperty('--pc', pc.join(','));
+    document.documentElement.style.setProperty('--ring', lum > 150 ? '28,26,23' : '255,255,255');
+
+    if (!arrivedFromPortal) {
+      const timer = setTimeout(() => {
+        handleDismissIntro();
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+
+    // Portal entry
+    setIntroRemoved(true);
+    setIrisVisible(true);
+    const vx = portalCoords.x * window.innerWidth;
+    const vy = portalCoords.y * window.innerHeight;
+    const big = dmax(vx, vy);
+
+    setIrisStyle(vx, vy, 0);
+    setTimeout(() => {
+      setIsReady(true);
+    }, 650);
+
+    const t0 = performance.now();
+    let animId: number;
+    const step = (now: number) => {
+      const t = Math.min(1, (now - t0) / 1600);
+      const ease = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+      setIrisStyle(vx, vy, big * ease);
+      if (t < 1) {
+        animId = requestAnimationFrame(step);
+      } else {
+        setIrisVisible(false);
+      }
+    };
+
+    const delayTimer = setTimeout(() => {
+      animId = requestAnimationFrame(step);
+    }, 250);
+
+    return () => {
+      clearTimeout(delayTimer);
+      cancelAnimationFrame(animId);
+    };
+  }, [arrivedFromPortal, portalCoords, handleDismissIntro]);
+
+  const handleLeavePortal = useCallback(() => {
+    if (leavingRef.current) return;
+    leavingRef.current = true;
+
+    const vx = portalCoords.x * window.innerWidth;
+    const vy = portalCoords.y * window.innerHeight;
+    const big = dmax(vx, vy);
+
+    setIrisVisible(true);
+    setIrisStyle(vx, vy, big);
+
+    const t0 = performance.now();
+    let animId: number;
+    const step = (now: number) => {
+      const t = Math.min(1, (now - t0) / 1250);
+      const ease = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+      setIrisStyle(vx, vy, big * (1 - ease));
+      if (t < 1) {
+        animId = requestAnimationFrame(step);
+      } else {
+        if (onReturnWithPortal) {
+          onReturnWithPortal(portalCoords);
+        } else {
+          onReturn();
+        }
+      }
+    };
+    animId = requestAnimationFrame(step);
+  }, [onReturn, onReturnWithPortal, portalCoords]);
 
   // Mouse spotlight
   useEffect(() => {
@@ -514,6 +609,13 @@ export const GalleryWallWorld: React.FC<GalleryWallWorldProps> = ({ onReturn, on
 
   return (
     <div className={styles.galleryScope}>
+      {/* Portal Iris transition element */}
+      <div
+        ref={irisRef}
+        className={`${styles.iris} ${irisVisible ? styles.irisVisible : ''}`}
+        aria-hidden="true"
+      />
+
       {/* Intro Curtain */}
       {!introRemoved && (
         <div
@@ -545,7 +647,7 @@ export const GalleryWallWorld: React.FC<GalleryWallWorldProps> = ({ onReturn, on
       <button
         type="button"
         className={styles.returnBtn}
-        onClick={onReturn}
+        onClick={handleLeavePortal}
         title="Return to the hub"
         aria-label="Return to the hub"
       >
@@ -658,7 +760,7 @@ export const GalleryWallWorld: React.FC<GalleryWallWorldProps> = ({ onReturn, on
           >
             Commission Portfolio
           </button>
-          <button type="button" className={styles.btn} onClick={onReturn}>
+          <button type="button" className={styles.btn} onClick={handleLeavePortal}>
             Return to hub
           </button>
         </div>

@@ -41,7 +41,9 @@ export function App() {
   const [transitioning, setTransitioning] = useState<boolean>(false);
   const [transitionDirection, setTransitionDirection] = useState<'enter' | 'return'>('enter');
   const [pendingWorld, setPendingWorld] = useState<WorldConfig | null>(null);
-  const [showAudioAlert, setShowAudioAlert] = useState<boolean>(true);
+  const [portalCoordinates, setPortalCoordinates] = useState<{ x: number; y: number; color: [number, number, number] }>({ x: 0.5, y: 0.5, color: [240, 240, 240] });
+  const [arrivingFromWorldId, setArrivingFromWorldId] = useState<string | null>(null);
+  const [showAudioAlert, setShowAudioAlert] = useState<boolean>(false);
   const [isAudioMuted, setIsAudioMuted] = useState<boolean>(true);
   const [commissionOpen, setCommissionOpen] = useState<boolean>(false);
   const [commissionWorldTarget, setCommissionWorldTarget] = useState<string>('Custom Creative Showcase');
@@ -69,22 +71,16 @@ export function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  // Keyboard shortcut: Escape returns to Hub (unless a modal is open)
+  // Keyboard shortcut: Escape closes commission modal if open
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        if (commissionOpen) {
-          setCommissionOpen(false);
-          return;
-        }
-        if (activeWorld && !transitioning) {
-          handleReturnToHub();
-        }
+      if (e.key === 'Escape' && commissionOpen) {
+        setCommissionOpen(false);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeWorld, commissionOpen, transitioning]);
+  }, [commissionOpen]);
 
   const handleEnableAudio = () => {
     soundEngine.init();
@@ -108,36 +104,37 @@ export function App() {
     }
   };
 
-  const handleSelectWorld = (world: WorldConfig) => {
+  const handleSelectWorld = (
+    world: WorldConfig,
+    coords?: { x: number; y: number; color: [number, number, number] }
+  ) => {
     if (transitioning) return;
+    if (coords) setPortalCoordinates(coords);
     setPendingWorld(world);
     setTransitionDirection('enter');
-    setTransitioning(true);
-
-    setTimeout(() => {
-      setActiveWorld(world);
-      const basePath = window.location.pathname.startsWith('/multi-world-portfolio') ? '/multi-world-portfolio' : '';
-      window.history.pushState(null, '', `${basePath}/worlds/${world.slug}`);
-      setTimeout(() => {
-        setTransitioning(false);
-        setPendingWorld(null);
-      }, 400);
-    }, 750);
+    setActiveWorld(world);
+    const basePath = window.location.pathname.startsWith('/multi-world-portfolio') ? '/multi-world-portfolio' : '';
+    window.history.pushState(null, '', `${basePath}/worlds/${world.slug}`);
+    soundEngine.setAmbientMood(world.soundtrackMood);
   };
 
   const handleReturnToHub = () => {
-    if (transitioning) return;
-    setTransitionDirection('return');
-    setTransitioning(true);
-    setTimeout(() => {
-      setActiveWorld(null);
-      const basePath = window.location.pathname.startsWith('/multi-world-portfolio') ? '/multi-world-portfolio' : '';
-      window.history.pushState(null, '', `${basePath}/`);
-      soundEngine.setAmbientMood('hub');
-      setTimeout(() => {
-        setTransitioning(false);
-      }, 350);
-    }, 550);
+    setActiveWorld(null);
+    const basePath = window.location.pathname.startsWith('/multi-world-portfolio') ? '/multi-world-portfolio' : '';
+    window.history.pushState(null, '', `${basePath}/`);
+    soundEngine.setAmbientMood('hub');
+  };
+
+  const handleReturnWithPortal = (
+    worldId: string,
+    coords: { x: number; y: number; color: [number, number, number] }
+  ) => {
+    setPortalCoordinates(coords);
+    setArrivingFromWorldId(worldId);
+    setActiveWorld(null);
+    const basePath = window.location.pathname.startsWith('/multi-world-portfolio') ? '/multi-world-portfolio' : '';
+    window.history.pushState(null, '', `${basePath}/`);
+    soundEngine.setAmbientMood('hub');
   };
 
   const handleOpenCommission = (worldName?: string) => {
@@ -177,6 +174,8 @@ export function App() {
           onOpenCommission={handleOpenCommission}
           isAudioMuted={isAudioMuted}
           onToggleAudio={handleToggleAudio}
+          arrivingFromWorldId={arrivingFromWorldId}
+          onArriveAnimationComplete={() => setArrivingFromWorldId(null)}
         />
       ) : (
         <Suspense
@@ -208,6 +207,9 @@ export function App() {
             <GalleryWallWorld 
               onReturn={handleReturnToHub} 
               onOpenCommission={handleOpenCommission} 
+              arrivedFromPortal={true}
+              portalCoords={portalCoordinates}
+              onReturnWithPortal={(coords) => handleReturnWithPortal('curator-monolith', coords)}
             />
           )}
           {activeWorld.id === 'torn-atelier' && (

@@ -175,8 +175,8 @@
 }
 
 .readyHeroCh {
-  opacity: 1;
-  transform: none;
+  opacity: 1 !important;
+  transform: none !important;
 }
 
 /* Hero */
@@ -568,11 +568,16 @@
 
 /* Fullscreen lightbox */
 .lb {
+  display: none;
   position: fixed;
   inset: 0;
   z-index: 100;
   overflow-y: auto;
   overscroll-behavior: contain;
+}
+
+.lbOpen {
+  display: block;
 }
 
 .lbBackdrop {
@@ -824,3 +829,52 @@
     left: 14px;
   }
 }
+
+/* Portal travel: circular hole opening and closing */
+.iris {
+  display: none;
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 300vmax rgb(var(--pc, 240, 240, 240)), inset 0 0 50px rgba(0, 0, 0, 0.22);
+  pointer-events: none;
+  z-index: 9999;
+}
+
+.irisVisible {
+  display: block !important;
+}
+
+.iris::before,
+.iris::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  border: 3px solid transparent;
+  animation: irisSpin 1s linear infinite;
+}
+
+.iris::before {
+  inset: -7px;
+  border-top-color: rgba(var(--ring, 28, 26, 23), 0.8);
+  border-left-color: rgba(var(--ring, 28, 26, 23), 0.35);
+}
+
+.iris::after {
+  inset: -17px;
+  border-bottom-color: rgba(var(--ring, 28, 26, 23), 0.5);
+  border-right-color: rgba(var(--ring, 28, 26, 23), 0.2);
+  animation-direction: reverse;
+  animation-duration: 1.6s;
+}
+
+@keyframes irisSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+

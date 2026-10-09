@@ -152,3 +152,43 @@
   outline: 2px solid #7cf4ff;
   outline-offset: 2px;
 }
+
+/* Expanding/shrinking disc of portal color */
+.disc {
+  display: none;
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  width: 300vmax;
+  height: 300vmax;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: rgb(var(--pc, 240, 240, 240));
+  box-shadow: 0 0 70px 18px rgba(var(--pc, 240, 240, 240), 0.55);
+  pointer-events: none;
+  z-index: 100;
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 22px);
+  transform: translateX(-50%) translateY(20px);
+  background: rgba(20, 24, 48, 0.95);
+  border: 1px solid rgba(124, 244, 255, 0.4);
+  color: #e8ecf8;
+  padding: 10px 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  opacity: 0;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  pointer-events: none;
+  z-index: 110;
+  max-width: 90vw;
+  text-align: center;
+}
+
+.toastShow {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
