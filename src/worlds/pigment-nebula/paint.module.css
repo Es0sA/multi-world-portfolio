@@ -1,0 +1,210 @@
+.paintScope {
+  min-height: 100vh;
+  background: #0f040e;
+  color: #fdf2f8;
+  font-family: 'Inter', -apple-system, sans-serif;
+  padding: 4.5rem 1.5rem 2rem;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
+
+.viewToggle {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  position: relative;
+  z-index: 20;
+}
+
+.toggleBtn {
+  background: rgba(236, 72, 153, 0.12);
+  border: 1px solid rgba(236, 72, 153, 0.35);
+  color: #fbcfe8;
+  padding: 0.4rem 0.95rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: all 0.2s ease;
+}
+
+.toggleBtn:hover,
+.activeToggle {
+  background: #ec4899;
+  color: #ffffff;
+  border-color: #ec4899;
+}
+
+.canvasContainer {
+  flex: 1;
+  position: relative;
+  width: 100%;
+  height: calc(100vh - 10rem);
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid rgba(236, 72, 153, 0.25);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.9);
+}
+
+.webglCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.nebulaPrompt {
+  position: absolute;
+  top: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(18, 6, 17, 0.85);
+  border: 1px solid rgba(236, 72, 153, 0.3);
+  padding: 0.5rem 1.25rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #fbcfe8;
+  backdrop-filter: blur(10px);
+  pointer-events: none;
+}
+
+.planetDrawer {
+  position: absolute;
+  right: 1.5rem;
+  top: 1.5rem;
+  bottom: 1.5rem;
+  width: 420px;
+  background: rgba(20, 6, 19, 0.92);
+  border: 1px solid rgba(236, 72, 153, 0.35);
+  border-radius: 16px;
+  padding: 1.75rem;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  z-index: 10;
+  animation: slideIn 0.25s ease-out;
+}
+
+.drawerHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.paletteBadge {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  color: #f472b6;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.closeDrawerBtn {
+  background: transparent;
+  border: none;
+  color: #cbd5e1;
+  cursor: pointer;
+}
+
+.planetTitle {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #ffffff;
+  margin: 0;
+  line-height: 1.25;
+}
+
+.clientTag {
+  font-size: 0.8rem;
+  color: #f472b6;
+  margin: 0;
+}
+
+.planetDesc {
+  font-size: 0.88rem;
+  color: #e2e8f0;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.fluidSection {
+  font-size: 0.82rem;
+  color: #cbd5e1;
+  line-height: 1.45;
+}
+
+.fluidSection h4 {
+  font-size: 0.75rem;
+  color: #f472b6;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 0.35rem;
+}
+
+.delivPills {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.pillItem {
+  font-size: 0.8rem;
+  color: #fbcfe8;
+}
+
+.metricGlow {
+  background: rgba(236, 72, 153, 0.12);
+  border-left: 3px solid #ec4899;
+  padding: 0.6rem 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: #fdf2f8;
+}
+
+.commissionPlanetBtn {
+  margin-top: auto;
+  background: linear-gradient(135deg, #ec4899, #db2777);
+  color: #ffffff;
+  border: none;
+  padding: 0.75rem;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(236, 72, 153, 0.35);
+  transition: all 0.2s ease;
+}
+
+.commissionPlanetBtn:hover {
+  background: linear-gradient(135deg, #f472b6, #ec4899);
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@media (max-width: 768px) {
+  .planetDrawer {
+    width: calc(100% - 3rem);
+  }
+}

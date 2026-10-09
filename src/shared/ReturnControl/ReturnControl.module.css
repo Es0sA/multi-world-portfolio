@@ -1,0 +1,128 @@
+.bar {
+  position: fixed;
+  top: 1.25rem;
+  left: 1.5rem;
+  right: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 9000;
+  pointer-events: none;
+}
+
+.returnBtn,
+.commissionBtn {
+  pointer-events: auto;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: 9999px;
+  padding: 0.6rem 1.15rem;
+}
+
+.returnBtn {
+  background: rgba(12, 14, 20, 0.85);
+  color: #e2e8f0;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.returnBtn:hover {
+  background: rgba(22, 27, 38, 0.95);
+  border-color: rgba(255, 255, 255, 0.35);
+  color: #ffffff;
+  transform: translateX(-2px);
+  box-shadow: 0 6px 25px rgba(0, 0, 0, 0.6);
+}
+
+.arrowIcon {
+  transition: transform 0.2s ease;
+}
+
+.returnBtn:hover .arrowIcon {
+  transform: translateX(-3px);
+}
+
+.homeIcon {
+  opacity: 0.6;
+}
+
+.worldTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(10, 12, 18, 0.7);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 0.45rem 1rem;
+  border-radius: 9999px;
+  pointer-events: auto;
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #38bdf8;
+  box-shadow: 0 0 8px #38bdf8;
+  animation: pulse 2s infinite ease-in-out;
+}
+
+.tagText {
+  color: #cbd5e1;
+  font-size: 0.8rem;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.commissionBtn {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.9), rgba(168, 85, 247, 0.9));
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 4px 20px rgba(124, 58, 237, 0.35);
+}
+
+.commissionBtn:hover {
+  background: linear-gradient(135deg, #4f46e5, #9333ea);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(124, 58, 237, 0.55);
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.85);
+  }
+}
+
+@media (max-width: 640px) {
+  .bar {
+    top: 0.75rem;
+    left: 0.75rem;
+    right: 0.75rem;
+  }
+  .returnText {
+    display: none;
+  }
+  .worldTag {
+    display: none;
+  }
+  .commissionBtn span {
+    display: none;
+  }
+  .commissionBtn {
+    padding: 0.6rem;
+  }
+}
