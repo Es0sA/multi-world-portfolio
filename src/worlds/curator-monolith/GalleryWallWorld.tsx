@@ -346,7 +346,7 @@ export const GalleryWallWorld: React.FC<GalleryWallWorldProps> = ({
   }, []);
 
   const dmax = (x: number, y: number) =>
-    2 * Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y)) + 60;
+    2 * Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight + 160 - y)) + 60;
 
   const setIrisStyle = (x: number, y: number, D: number) => {
     const iris = irisRef.current;

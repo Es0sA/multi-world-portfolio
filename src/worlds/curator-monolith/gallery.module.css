@@ -800,7 +800,7 @@
 @media (max-width: 899px) {
   .wall {
     grid-template-columns: 1fr;
-    padding: 4vh 6vw 14vh;
+    padding: 2vh 6vw 14vh;
     row-gap: clamp(80px, 16vh, 150px);
   }
   .work {
@@ -811,7 +811,31 @@
     margin-left: auto;
   }
   .who {
-    display: none;
+    position: absolute;
+    right: 16px;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+  }
+  .hero {
+    min-height: 0;
+    place-items: start center;
+    padding: calc(env(safe-area-inset-top, 0px) + 104px) 6vw 28px;
+  }
+  .heroTitle {
+    font-size: clamp(64px, 20vw, 120px);
+    line-height: 0.94;
+    margin-top: 18px;
+  }
+  .word {
+    display: block;
+  }
+  .heroSub {
+    margin-top: 24px;
+    font-size: 16px;
+  }
+  .cue {
+    height: 52px;
+    margin-top: 30px;
   }
   .lbStage {
     grid-template-columns: 1fr;

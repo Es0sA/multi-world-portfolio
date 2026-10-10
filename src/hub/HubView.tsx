@@ -66,7 +66,9 @@ function runAnim(dur: number, fn: (t: number) => void, done?: () => void) {
 }
 
 function dmaxAt(x: number, y: number) {
-  return 2 * Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y)) + 60;
+  const w = Math.max(window.innerWidth, document.documentElement.clientWidth);
+  const h = Math.max(window.innerHeight, document.documentElement.clientHeight) + 200;
+  return 2 * Math.hypot(Math.max(x, w - x), Math.max(y, h - y)) + 60;
 }
 
 export const HubView: React.FC<HubViewProps> = ({
@@ -333,9 +335,9 @@ export const HubView: React.FC<HubViewProps> = ({
 
       const rects = computedPortals.map((p) => ({
         left: p.x - p.r * 1.5,
-        top: p.y - p.r * 1.9,
+        top: p.y - p.r * 2,
         width: p.r * 3,
-        height: p.r * 3.9,
+        height: p.r * 4,
       }));
       setButtonRects(rects);
 
