@@ -228,6 +228,9 @@ export function App() {
             <ComicPageWorld 
               onReturn={handleReturnToHub} 
               onOpenCommission={handleOpenCommission} 
+              arrivedFromPortal={true}
+              portalCoords={portalCoordinates}
+              onReturnWithPortal={(coords) => handleReturnWithPortal('graphic-chronicle', coords)}
             />
           )}
           {activeWorld.id === 'origami-vault' && (

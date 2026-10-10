@@ -46,7 +46,7 @@ const PORTAL_SPECS = [
   { id: 'gallery-wall', name: 'Gallery Wall', field: 'Designer', tier: 'Regular', color: [240, 240, 240] as [number, number, number], url: 'gallery-wall.html' },
   { id: 'sketchbook', name: 'Sketchbook Explosion', field: 'Designer', tier: 'Crazy', color: [255, 216, 77] as [number, number, number], url: null },
   { id: 'paint-universe', name: 'Paint Universe', field: 'Designer', tier: 'Beyond', color: [255, 111, 216] as [number, number, number], url: null },
-  { id: 'comic-page', name: 'Comic Page', field: 'Illustrator', tier: 'Regular', color: [255, 77, 109] as [number, number, number], url: null },
+  { id: 'comic-page', name: 'Comic Page', field: 'Illustrator', tier: 'Regular', color: [255, 77, 109] as [number, number, number], url: 'comic-page.html' },
   { id: 'pop-up-book', name: 'Pop-Up Book', field: 'Illustrator', tier: 'Crazy', color: [180, 140, 255] as [number, number, number], url: null },
   { id: 'ink-dimension', name: 'Ink Dimension', field: 'Illustrator', tier: 'Beyond', color: [154, 163, 184] as [number, number, number], url: null }
 ];
@@ -242,7 +242,8 @@ export const HubView: React.FC<HubViewProps> = ({
     const idx = portalsRef.current.findIndex(
       (w) =>
         w.id === arrivingFromWorldId ||
-        (w.id === 'gallery-wall' && arrivingFromWorldId === 'curator-monolith')
+        (w.id === 'gallery-wall' && arrivingFromWorldId === 'curator-monolith') ||
+        (w.id === 'comic-page' && arrivingFromWorldId === 'graphic-chronicle')
     );
     if (idx < 0) return;
 
