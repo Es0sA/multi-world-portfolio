@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Portfolio Sanctum | Hub</title>
+<script>
+  // If we are coming back from a world, start the page already filled with that
+  // world's color so there is no dark flash before the portal closing animation.
+  (function () {
+    var q = new URLSearchParams(location.search);
+    if (!q.get("from")) return;
+    var c = (q.get("c") || "240,240,240").split(",").map(Number);
+    if (c.length !== 3 || c.some(isNaN)) c = [240, 240, 240];
+    var h = document.documentElement;
+    h.classList.add("portal-back");
+    h.style.setProperty("--pc", c.join(","));
+  })();
+</script>
+<style>
+  :root { --bg: #04050b; --text: #e8ecf8; --muted: #7a84a6; --accent: #7cf4ff; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    -webkit-text-size-adjust: 100%;
+  }
+  html.portal-back { background: rgb(var(--pc, 240, 240, 240)); }
+  html.lock, html.lock body { touch-action: none; overscroll-behavior: none; }
+  body { overflow-x: hidden; overflow-y: auto; }
+
+  #stage { position: relative; width: 100%; overflow: hidden; }
+  #scene { position: absolute; top: 0; left: 0; width: 100%; display: block; }
+
+  .overlay {
+    position: absolute; top: 0; left: 0; right: 0;
+    text-align: center;
+    padding: calc(env(safe-area-inset-top, 0px) + 32px) 20px 0;
+    pointer-events: none;
+    z-index: 2;
+  }
+  .mark { font-size: 11px; letter-spacing: 0.35em; text-transform: uppercase; color: var(--accent); opacity: 0.85; }
+  h1 {
+    margin-top: 10px;
+    font-size: clamp(26px, 5vw, 40px);
+    font-weight: 300;
+    letter-spacing: 0.04em;
+    text-shadow: 0 0 28px rgba(124, 244, 255, 0.35);
+  }
+  .hint { margin-top: 8px; font-size: 13px; color: var(--muted); min-height: 18px; }
+  .hint.active { color: var(--accent); }
+
+  .hit {
+    position: absolute; z-index: 3;
+    background: transparent; border: none; border-radius: 18px; cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .hit:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* The expanding / shrinking disc of portal color */
+  .disc {
+    display: none;
+    position: fixed; left: 50%; top: 50%;
+    width: 300vmax; height: 300vmax;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    background: rgb(var(--pc, 240, 240, 240));
+    box-shadow: 0 0 70px 18px rgba(var(--pc, 240, 240, 240), 0.55);
+    pointer-events: none;
+    z-index: 8;
+  }
+  html.portal-back .disc { display: block; }
+
+  #toast {
+    position: fixed; left: 50%;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 22px);
+    transform: translateX(-50%) translateY(20px);
+    background: rgba(20, 24, 48, 0.95);
+    border: 1px solid rgba(124, 244, 255, 0.4);
+    color: var(--text);
+    padding: 10px 16px; border-radius: 999px; font-size: 13px;
+    opacity: 0; transition: opacity 0.25s ease, transform 0.25s ease;
+    pointer-events: none; z-index: 10; max-width: 90vw; text-align: center;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<div class="disc" id="disc" aria-hidden="true"></div>
+
+<div id="stage">
+  <canvas id="scene" aria-hidden="true"></canvas>
+  <div class="overlay">
+    <div class="mark">Esosa Portfolio Sanctum</div>
+    <h1>Choose a world</h1>
+    <div class="hint" id="hint"></div>
+  </div>
+</div>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+const canvas = document.getElementById("scene");
+const ctx = canvas.getContext("2d");
+const stage = document.getElementById("stage");
+const hint = document.getElementById("hint");
+const toast = document.getElementById("toast");
+const disc = document.getElementById("disc");
+const root = document.documentElement;
+
+const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const isTouch = window.matchMedia("(pointer: coarse)").matches;
+const DEFAULT_HINT = isTouch ? "Tap a portal to enter." : "Move toward a portal to wake it. Click to enter.";
+
+// Worlds with a url are built. The others play the open and close animation, then say so.
+const WORLDS = [
+  { id: "terminal-office", name: "Terminal Office",      field: "Developer",   tier: "Regular", color: [93, 255, 138],  url: null },
+  { id: "cpu-and-monitor", name: "CPU and Monitor",      field: "Developer",   tier: "Crazy",   color: [255, 157, 77],  url: null },
+  { id: "circuit-city",    name: "Circuit City",         field: "Developer",   tier: "Beyond",  color: [77, 166, 255],  url: null },
+  { id: "gallery-wall",    name: "Gallery Wall",         field: "Designer",    tier: "Regular", color: [240, 240, 240], url: "gallery-wall.html" },
+  { id: "sketchbook",      name: "Sketchbook Explosion", field: "Designer",    tier: "Crazy",   color: [255, 216, 77],  url: null },
+  { id: "paint-universe",  name: "Paint Universe",       field: "Designer",    tier: "Beyond",  color: [255, 111, 216], url: null },
+  { id: "comic-page",      name: "Comic Page",           field: "Illustrator", tier: "Regular", color: [255, 77, 109],  url: "comic-page.html" },
+  { id: "pop-up-book",     name: "Pop-Up Book",          field: "Illustrator", tier: "Crazy",   color: [180, 140, 255], url: null },
+  { id: "ink-dimension",   name: "Ink Dimension",        field: "Illustrator", tier: "Beyond",  color: [154, 163, 184], url: null }
+];
+
+let W = 0, H = 0, dpr = 1, compact = false, topPad = 0;
+let portals = [];
+let stars = [];
+let hovered = -1;
+let toastTimer = null;
+
+// Transition state
+let busyIdx = -1;      // a portal is opening or closing
+let boostIdx = -1;     // the portal whose rings are spun up
+let boostSpin = 1;     // target spin speed for that portal
+let boostGlow = 0;     // target glow for that portal
+let othersFade = 1;    // target opacity for every other portal
+
+/* ---------- small animation helpers ---------- */
+const easeIO = t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+const lerp = (a, b, t) => a + (b - a) * t;
+
+function run(dur, fn, done) {
+  const t0 = performance.now();
+  function step(now) {
+    const t = Math.min(1, (now - t0) / dur);
+    fn(t);
+    if (t < 1) requestAnimationFrame(step);
+    else if (done) done();
+  }
+  requestAnimationFrame(step);
+}
+
+function setDisc(x, y, D) {
+  disc.style.left = x + "px";
+  disc.style.top = y + "px";
+  disc.style.width = D + "px";
+  disc.style.height = D + "px";
+}
+
+// Diameter of a circle centered at (x, y) that covers the whole screen
+function dmaxAt(x, y) {
+  const w = Math.max(window.innerWidth, document.documentElement.clientWidth);
+  const h = Math.max(window.innerHeight, document.documentElement.clientHeight) + 200;
+  return 2 * Math.hypot(Math.max(x, w - x), Math.max(y, h - y)) + 60;
+}
+
+// Where a portal really is on screen right now, measured from the page itself.
+// The hit button is centered exactly on the portal, and its rectangle uses the
+// same coordinate space as the fixed disc, so there is no scroll or toolbar maths.
+function portalCenter(i) {
+  const r = buttons[i].getBoundingClientRect();
+  return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+}
+
+// Freeze scrolling during a transition without resizing the page
+function stopScroll(e) { if (busyIdx >= 0) e.preventDefault(); }
+window.addEventListener("touchmove", stopScroll, { passive: false });
+window.addEventListener("wheel", stopScroll, { passive: false });
+window.addEventListener("keydown", e => {
+  if (busyIdx >= 0 && [" ", "ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End"].includes(e.key)) e.preventDefault();
+});
+
+function showToast(msg) {
+  toast.textContent = msg;
+  toast.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove("show"), 2400);
+}
+
+/* ---------- hit buttons (taps, mouse, keyboard) ---------- */
+const buttons = WORLDS.map((w, i) => {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "hit";
+  b.setAttribute("aria-label", w.name + ", " + w.tier + " " + w.field + " world");
+  b.addEventListener("pointerenter", e => { if (e.pointerType === "mouse" && busyIdx < 0) hovered = i; });
+  b.addEventListener("pointerleave", () => { if (hovered === i) hovered = -1; });
+  b.addEventListener("focus", () => { if (b.matches(":focus-visible") && busyIdx < 0) hovered = i; });
+  b.addEventListener("blur", () => { if (hovered === i) hovered = -1; });
+  b.addEventListener("click", () => enter(i));
+  stage.appendChild(b);
+  return b;
+});
+
+/* ---------- opening a portal ---------- */
+function enter(i) {
+  if (busyIdx >= 0) return;
+  const w = WORLDS[i], p = portals[i];
+
+  if (reduceMotion) {
+    if (w.url) { const c = portalCenter(i); goToWorld(i, c.x, c.y); }
+    else showToast(w.name + " is not built yet");
+    return;
+  }
+
+  const c0 = portalCenter(i);
+  busyIdx = i; boostIdx = i; boostSpin = 9; boostGlow = 1.6; othersFade = 0.18;
+  hovered = -1;
+  root.style.setProperty("--pc", w.color.join(","));
+  root.classList.add("lock");
+
+  const vx = c0.x, vy = c0.y;
+  const d0 = p.r * 1.2, d1 = dmaxAt(vx, vy);
+
+  // Rings spin up first, then the color floods out of the doorway
+  setTimeout(() => {
+    disc.style.display = "block";
+    setDisc(vx, vy, d0);
+    run(1000, t => setDisc(vx, vy, lerp(d0, d1, easeIO(t))), () => {
+      if (w.url) {
+        goToWorld(i, vx, vy);
+      } else {
+        showToast(w.name + " is not built yet");
+        setTimeout(() => closePortal(i, vx, vy, d1), 900);
+      }
+    });
+  }, 450);
+}
+
+function goToWorld(i, vx, vy) {
+  const w = WORLDS[i];
+  location.href = w.url +
+    "?portal=" + encodeURIComponent(w.id) +
+    "&x=" + (vx / window.innerWidth).toFixed(4) +
+    "&y=" + (vy / window.innerHeight).toFixed(4) +
+    "&px=" + Math.round(vx) + "&py=" + Math.round(vy) +
+    "&c=" + w.color.join(",");
+}
+
+/* ---------- closing a portal: the color is drawn back into the doorway ---------- */
+function closePortal(i, vx, vy, fromD) {
+  const p = portals[i];
+  const endD = p.r * 1.0;
+  boostSpin = 1; boostGlow = 0; othersFade = 1;
+  run(1300, t => setDisc(vx, vy, lerp(fromD, endD, easeIO(t))), () => {
+    disc.style.transition = "opacity 0.35s ease";
+    disc.style.opacity = "0";
+    setTimeout(() => {
+      disc.style.display = "none";
+      disc.style.opacity = "";
+      disc.style.transition = "";
+      root.classList.remove("portal-back", "lock");
+      boostIdx = -1; busyIdx = -1;
+    }, 380);
+  });
+}
+
+/* ---------- layout and drawing ---------- */
+function layout() {
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  W = Math.round(stage.clientWidth || window.innerWidth);
+  compact = W < 720;
+
+  const cols = compact ? 2 : 3;
+  const rows = Math.ceil(WORLDS.length / cols);
+  topPad = compact ? 200 : 210;
+  const cellW = W / cols;
+  const cellH = compact ? 210 : Math.max(190, (window.innerHeight - topPad - 30) / rows);
+  const radius = Math.max(32, Math.min(cellW * 0.22, cellH * 0.22, 72));
+
+  H = Math.max(window.innerHeight, topPad + cellH * rows + 50);
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.height = H + "px";
+  stage.style.height = H + "px";
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  const old = portals;
+  portals = WORLDS.map((w, i) => {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const inRow = Math.min(cols, WORLDS.length - row * cols);
+    const offset = ((cols - inRow) * cellW) / 2;
+    const o = old[i];
+    return Object.assign({}, w, {
+      x: cellW * col + cellW / 2 + offset,
+      y: topPad + cellH * row + cellH / 2,
+      r: radius,
+      seed: (i + 1) * 7.3,
+      glow: o ? o.glow : 0,
+      fade: o ? o.fade : 1,
+      spin: o ? o.spin : 1,
+      rot: o ? o.rot : (i + 1) * 7.3
+    });
+  });
+
+  portals.forEach((p, i) => {
+    const b = buttons[i];
+    b.style.left = (p.x - p.r * 1.5) + "px";
+    b.style.top = (p.y - p.r * 2) + "px";
+    b.style.width = (p.r * 3) + "px";
+    b.style.height = (p.r * 4) + "px";
+  });
+
+  stars = Array.from({ length: Math.floor((W * H) / 9000) }, () => ({
+    x: Math.random() * W, y: Math.random() * H,
+    r: Math.random() * 1.3 + 0.2, a: Math.random() * Math.PI * 2
+  }));
+}
+
+function drawStars(viewTop, viewBottom) {
+  for (const s of stars) {
+    if (!reduceMotion) s.a += 0.012;
+    if (s.y < viewTop || s.y > viewBottom) continue;
+    const alpha = 0.2 + (Math.sin(s.a) * 0.5 + 0.5) * 0.6;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(200, 220, 255, " + alpha + ")";
+    ctx.fill();
+  }
+}
+
+function drawPortal(p, time) {
+  const r = p.color[0], g = p.color[1], b = p.color[2];
+  const hover = p.glow;
+  const R = p.r * (1 + hover * 0.08);
+  const blurScale = isTouch ? 0.5 : 1;
+
+  ctx.globalAlpha = Math.max(0, Math.min(1, p.fade));
+
+  // Outer aura
+  const aura = ctx.createRadialGradient(p.x, p.y, R * 0.4, p.x, p.y, R * 2.1);
+  aura.addColorStop(0, "rgba(" + r + "," + g + "," + b + "," + Math.min(1, 0.10 + hover * 0.25) + ")");
+  aura.addColorStop(1, "rgba(" + r + "," + g + "," + b + ",0)");
+  ctx.fillStyle = aura;
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, R * 2.1, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Swirling vortex: counter-rotating elliptical rings
+  for (let k = 0; k < 4; k++) {
+    const ringR = R * (0.55 + k * 0.18);
+    const squash = 0.35 + k * 0.05;
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.rotate(p.rot * (k % 2 ? -1 : 1) * (1 + k * 0.2));
+    ctx.beginPath();
+    ctx.ellipse(0, 0, ringR, ringR * squash, 0, 0.2, Math.PI * 1.6);
+    ctx.strokeStyle = "rgba(" + r + "," + g + "," + b + "," + Math.min(1, 0.35 + hover * 0.4 - k * 0.05) + ")";
+    ctx.lineWidth = Math.max(1, 2 + hover * 1.5 - k * 0.3);
+    ctx.shadowColor = "rgb(" + r + "," + g + "," + b + ")";
+    ctx.shadowBlur = (10 + hover * 14) * blurScale;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Dark core: the doorway itself
+  ctx.shadowBlur = 0;
+  const core = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, R * 0.6);
+  core.addColorStop(0, "rgba(2,3,10,1)");
+  core.addColorStop(0.8, "rgba(" + r + "," + g + "," + b + "," + Math.min(1, 0.15 + hover * 0.2) + ")");
+  core.addColorStop(1, "rgba(2,3,10,0)");
+  ctx.fillStyle = core;
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, R * 0.6, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Orbiting motes
+  if (!reduceMotion) {
+    for (let m = 0; m < 6; m++) {
+      const a = time * (0.6 + m * 0.07) * (0.6 + p.spin * 0.4) + m * 1.05 + p.seed;
+      const d = R * (0.9 + Math.sin(time + m) * 0.1);
+      ctx.beginPath();
+      ctx.arc(p.x + Math.cos(a) * d, p.y + Math.sin(a) * d * 0.4, 1.8, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(" + r + "," + g + "," + b + "," + Math.min(1, 0.6 + hover * 0.4) + ")";
+      ctx.fill();
+    }
+  }
+
+  // Name floating above the portal
+  const bob = reduceMotion ? 0 : Math.sin(time * 1.3 + p.seed) * 3;
+  ctx.textAlign = "center";
+  ctx.font = "500 " + (compact ? 15 : 17) + "px 'Segoe UI', system-ui, -apple-system, sans-serif";
+  ctx.fillStyle = "rgba(245, 248, 255, " + Math.min(1, 0.85 + hover * 0.15) + ")";
+  ctx.shadowColor = "rgba(" + r + "," + g + "," + b + ",0.9)";
+  ctx.shadowBlur = (12 + hover * 10) * blurScale;
+  ctx.fillText(p.name, p.x, p.y - R * 1.45 + bob);
+
+  // Tier and field below
+  ctx.shadowBlur = 0;
+  ctx.font = (compact ? 10 : 11) + "px 'Segoe UI', system-ui, -apple-system, sans-serif";
+  ctx.fillStyle = "rgba(" + r + "," + g + "," + b + ",0.85)";
+  ctx.fillText(p.tier.toUpperCase() + "  \u00B7  " + p.field.toUpperCase(), p.x, p.y + R * 1.65);
+
+  ctx.globalAlpha = 1;
+}
+
+function drawFieldLabels() {
+  if (compact) return;
+  const labels = ["Developer", "Designer", "Illustrator and Comic Artist"];
+  ctx.textAlign = "center";
+  ctx.font = "11px 'Segoe UI', system-ui, -apple-system, sans-serif";
+  ctx.fillStyle = "rgba(122, 132, 166, 0.7)";
+  labels.forEach((label, i) => {
+    const rowY = portals[i * 3].y - portals[i * 3].r * 2.3;
+    ctx.fillText(label.toUpperCase(), W / 2, rowY);
+  });
+}
+
+let lastNow = 0;
+function frame(now) {
+  const dt = Math.min(0.05, (now - lastNow) / 1000 || 0.016);
+  lastNow = now;
+  const viewTop = window.scrollY - 220;
+  const viewBottom = window.scrollY + window.innerHeight + 220;
+
+  ctx.clearRect(0, 0, W, H);
+  drawStars(viewTop, viewBottom);
+  drawFieldLabels();
+
+  portals.forEach((p, i) => {
+    const boosted = i === boostIdx;
+    const glowT = boosted ? boostGlow : (i === hovered && boostIdx < 0 ? 1 : 0);
+    p.glow += (glowT - p.glow) * 0.12;
+    p.fade += ((boosted ? 1 : othersFade) - p.fade) * 0.1;
+    p.spin += ((boosted ? boostSpin : 1) - p.spin) * 0.06;
+    if (!reduceMotion) p.rot += dt * 0.4 * p.spin;
+    if (p.y < viewTop || p.y > viewBottom) return;
+    drawPortal(p, now / 1000);
+  });
+
+  const active = boostIdx >= 0 ? boostIdx : hovered;
+  if (active >= 0) {
+    hint.textContent = "Entering " + portals[active].name;
+    hint.classList.add("active");
+  } else {
+    hint.textContent = DEFAULT_HINT;
+    hint.classList.remove("active");
+  }
+
+  requestAnimationFrame(frame);
+}
+
+/* ---------- arriving back from a world: the portal we left closes ---------- */
+function arriveFromWorld() {
+  const q = new URLSearchParams(location.search);
+  const id = q.get("from");
+  if (!id) return;
+  if (window.history.replaceState) history.replaceState(null, "", location.pathname);
+
+  const i = WORLDS.findIndex(w => w.id === id);
+  if (i < 0 || reduceMotion) {
+    root.classList.remove("portal-back");
+    return;
+  }
+
+  const p = portals[i];
+  root.style.setProperty("--pc", p.color.join(","));
+  window.scrollTo(0, Math.max(0, p.y - window.innerHeight / 2));
+  const c0 = portalCenter(i);
+  root.classList.add("lock");
+
+  busyIdx = i; boostIdx = i; boostSpin = 1; boostGlow = 0; othersFade = 0.18;
+  p.spin = 9; p.glow = 1.6;
+  portals.forEach((o, k) => { if (k !== i) o.fade = 0.18; });
+
+  const vx = c0.x, vy = c0.y;
+  const d1 = dmaxAt(vx, vy);
+  setDisc(vx, vy, d1);
+  setTimeout(() => closePortal(i, vx, vy, d1), 350);
+}
+
+// Coming back with the browser's Back button can restore the page mid-animation
+window.addEventListener("pageshow", e => {
+  if (!e.persisted) return;
+  disc.style.display = "none";
+  root.classList.remove("portal-back", "lock");
+  busyIdx = -1; boostIdx = -1; boostSpin = 1; boostGlow = 0; othersFade = 1;
+  portals.forEach(p => { p.fade = 1; p.spin = 1; p.glow = 0; });
+});
+
+window.addEventListener("resize", layout);
+layout();
+arriveFromWorld();
+requestAnimationFrame(frame);
+</script>
+
+</body>
+</html>
