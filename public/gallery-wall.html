@@ -664,6 +664,114 @@ function artHTML(p, suffix) {
 <!-- =====================================================================
      3. THE EXPERIENCE. Intro, wall, parallax, spotlight and viewer.
      ===================================================================== -->
+<script id="sound">
+/* ---------- Sound: tiny synthesized effects, no audio files ----------
+   Off until the visitor chooses sound on the hub. The choice is saved in the
+   browser so every page follows it. Browsers only allow audio after a tap or
+   click, so each page unlocks it on the first one. */
+var Snd = (function () {
+  var KEY = 'cas-portfolio-sound', ctx = null, master = null, noiseBuf = null, lastGesture = -1e9, last = {};
+  function pref() { try { return localStorage.getItem(KEY); } catch (e) { return null; } }
+  function set(v) { try { localStorage.setItem(KEY, v); } catch (e) {} }
+  function on() { return pref() === 'on'; }
+  function ensure() {
+    if (!ctx) {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      try { ctx = new AC(); } catch (e) { return null; }
+      master = ctx.createGain();
+      master.gain.value = 0.55;
+      master.connect(ctx.destination);
+    }
+    if (ctx.state === 'suspended') { try { ctx.resume(); } catch (e) {} }
+    return ctx;
+  }
+  function gesture() { lastGesture = performance.now(); if (on()) ensure(); }
+  ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown'].forEach(function (ev) {
+    window.addEventListener(ev, gesture, { passive: true, capture: true });
+  });
+
+  function env(g, t, a, peak, dur) {
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(peak, t + a);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  }
+  function tone(type, f0, f1, t, dur, peak, a) {
+    var o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(f0, t);
+    if (f1 && f1 !== f0) o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    env(g, t, a || 0.012, peak, dur);
+    o.connect(g); g.connect(master);
+    o.start(t); o.stop(t + dur + 0.05);
+  }
+  function noise(t, dur, peak, type, f0, f1, q) {
+    if (!noiseBuf) {
+      noiseBuf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.6), ctx.sampleRate);
+      var d = noiseBuf.getChannelData(0);
+      for (var i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    }
+    var s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+    s.buffer = noiseBuf;
+    f.type = type; f.Q.value = q || 1;
+    f.frequency.setValueAtTime(f0, t);
+    if (f1 && f1 !== f0) f.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    env(g, t, 0.01, peak, dur);
+    s.connect(f); f.connect(g); g.connect(master);
+    s.start(t); s.stop(t + Math.min(dur + 0.05, 0.6));
+  }
+
+  var NOTES = [523.25, 587.33, 659.25, 783.99, 880, 987.77, 1046.5, 1174.66, 1318.51];
+  var SOUNDS = {
+    chime: function (t, i) {                       /* soft bell on a portal */
+      var f = NOTES[(i || 0) % NOTES.length];
+      tone('sine', f, 0, t, 0.7, 0.05, 0.01);
+      tone('sine', f * 2, 0, t, 0.4, 0.015, 0.01);
+    },
+    open: function (t) {                           /* rising shimmer as a portal opens */
+      tone('sine', 220, 660, t, 1.1, 0.05, 0.25);
+      tone('triangle', 330, 990, t + 0.05, 1.0, 0.025, 0.25);
+      [1318.51, 1567.98, 1975.53].forEach(function (f, k) { tone('sine', f, 0, t + 0.45 + k * 0.18, 0.5, 0.02, 0.01); });
+    },
+    close: function (t) {                          /* soft fall as a world closes */
+      tone('sine', 660, 170, t, 0.7, 0.05, 0.02);
+      noise(t, 0.5, 0.025, 'lowpass', 1800, 300, 0.7);
+    },
+    thunk: function (t) {                          /* a frame or panel opens */
+      tone('sine', 190, 120, t, 0.28, 0.09, 0.008);
+      tone('sine', 784, 0, t + 0.02, 0.35, 0.015, 0.01);
+    },
+    tick: function (t) {                           /* a paper tick */
+      noise(t, 0.06, 0.05, 'highpass', 3200, 0, 0.8);
+      tone('sine', 1500, 900, t, 0.05, 0.015, 0.004);
+    },
+    slam: function (t) {                           /* a comic panel lands */
+      tone('sine', 150, 55, t, 0.22, 0.12, 0.006);
+      noise(t, 0.12, 0.05, 'lowpass', 1200, 200, 0.7);
+    },
+    pop: function (t) {                            /* a sound effect word pops */
+      tone('sine', 420, 140, t, 0.14, 0.09, 0.005);
+    }
+  };
+  var MIN = { chime: 140, tick: 40, slam: 120, pop: 120 };
+
+  function play(name, arg) {
+    if (!on() || !SOUNDS[name]) return;
+    var now = performance.now();
+    if (last[name] && now - last[name] < (MIN[name] || 60)) return;
+    var c = ensure();
+    if (!c) return;
+    function go() { last[name] = performance.now(); SOUNDS[name](c.currentTime + 0.01, arg); }
+    if (c.state === 'running') { go(); return; }
+    /* still waking up: only play if this came from a tap or click just now */
+    if (now - lastGesture < 1000 && c.resume) {
+      c.resume().then(function () { if (performance.now() - lastGesture < 1500) go(); }).catch(function () {});
+    }
+  }
+  return { play: play, on: on, pref: pref, set: set, ensure: ensure };
+})();
+</script>
+
 <script id="app">
 (function () {
   "use strict";
@@ -820,6 +928,7 @@ function artHTML(p, suffix) {
   function openLB(i, fromEl) {
     if (lbOpen) return;
     lbOpen = true; current = i; opener = fromEl;
+    Snd.play("thunk");
     fill(i);
     lb.hidden = false;
     lb.scrollTop = 0;
@@ -841,6 +950,7 @@ function artHTML(p, suffix) {
   function closeLB() {
     if (!lbOpen) return;
     lbOpen = false;
+    Snd.play("tick");
     document.documentElement.classList.remove("lb-lock");
     var vh = window.innerHeight, fig = figs[current];
     fig.classList.add("in", "instant");
@@ -879,6 +989,7 @@ function artHTML(p, suffix) {
   function go(dir) {
     if (!lbOpen || busy) return;
     var n = (current + dir + N) % N;
+    Snd.play("tick");
     if (reduce || !lbArt.animate) { current = n; fill(n); return; }
     busy = true;
     var outKeys = [{ opacity: 1, transform: "translateX(0)" }, { opacity: 0, transform: "translateX(" + (-dir * 40) + "px)" }];
@@ -984,6 +1095,7 @@ function artHTML(p, suffix) {
   function leave(href) {
     if (leaving) return;
     leaving = true;
+    Snd.play("close");
     if (reduce) { location.href = href; return; }
     var o = origin(), vx = o.x, vy = o.y, big = dmax(vx, vy);
     setIris(vx, vy, big);
