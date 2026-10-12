@@ -994,7 +994,7 @@ function boardTexture() {
   return canvasTex(cw, ch, function (g) {
     function X(x) { return (x + BW / 2) * px; } function Z(z) { return (z + BD / 2) * px; }
     var gr = g.createRadialGradient(cw / 2, ch / 2, 100, cw / 2, ch / 2, cw * 0.62);
-    gr.addColorStop(0, '#167c3e'); gr.addColorStop(1, '#0e6030');
+    gr.addColorStop(0, '#0d5a2c'); gr.addColorStop(1, '#083f1e');
     g.fillStyle = gr; g.fillRect(0, 0, cw, ch);
     var r = rng(9), i;
     for (i = 0; i < 9000; i++) { g.fillStyle = 'rgba(' + (r() > 0.5 ? '255,255,255' : '0,28,10') + ',0.03)'; g.fillRect(r() * cw, r() * ch, 1 + r() * 4, 1 + r() * 4); }
@@ -1031,9 +1031,9 @@ function boardTexture() {
 }
 function buildBoardTop() {
   var top = new THREE.Mesh(new THREE.PlaneGeometry(BW, BD), new THREE.MeshStandardMaterial({ map: boardTexture(), roughness: 0.46, metalness: 0.06, envMapIntensity: 0.3 }));
-  top.rotation.x = -Math.PI / 2; top.position.y = 0.003; top.receiveShadow = true; scene.add(top);
-  var base = new THREE.Mesh(new THREE.BoxGeometry(BW, 0.5, BD), new THREE.MeshStandardMaterial({ color: 0x07391c, roughness: 0.7, envMapIntensity: 0.2 }));
-  base.position.y = -0.25; base.receiveShadow = true; scene.add(base);
+  top.rotation.x = -Math.PI / 2; top.position.y = 0.02; top.receiveShadow = true; scene.add(top);
+  var base = new THREE.Mesh(new THREE.BoxGeometry(BW, 0.5, BD), new THREE.MeshStandardMaterial({ color: 0x083f1e, roughness: 0.7, envMapIntensity: 0.2 }));
+  base.position.y = -0.3; base.receiveShadow = true; scene.add(base);
 }
 
 /* ---------------- raised copper traces (they light up and carry the pulses) ---------------- */
@@ -1577,7 +1577,7 @@ function buildScene() {
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x03140b);
   scene.fog = new THREE.Fog(0x03140b, 70, 170);
-  camera = new THREE.PerspectiveCamera(45, W / H, 0.1, 300);
+  camera = new THREE.PerspectiveCamera(45, W / H, 0.5, 300);
   scene.add(new THREE.HemisphereLight(0xe6f4ea, 0x0a2a14, 0.5));
   var sun = new THREE.DirectionalLight(0xfff6e6, 0.62);
   sun.position.set(-18, 40, 16); sun.castShadow = true;
@@ -2033,11 +2033,10 @@ function dismissCurtain() {
 function playCurtain() {
   var real = PROJECTS.filter(function (p) { return p.real; }).length;
   var lines = ['<span class="big">CIRCUIT CITY BIOS v3.0</span>', 'Memory test ............ OK', 'Detecting chips ........ ' + (NODES.length - 1) + ' found', 'Real projects .......... ' + real, 'Sample projects ........ ' + (PROJECTS.length - real), 'Tracing buses .......... ' + edgeDefs.length + ' linked', '', 'Press any key to boot'];
-  curtain.innerHTML = lines.map(function (l, k) { return '<div class="ln" style="animation-delay:' + (reduce ? 0 : 0.15 + k * 0.3).toFixed(2) + 's">' + (l || '&nbsp;') + '</div>'; }).join('') + '<div class="skip">Tap or press Enter to skip</div>';
+  curtain.innerHTML = lines.map(function (l, k) { return '<div class="ln" style="animation-delay:' + (reduce ? 0 : 0.15 + k * 0.3).toFixed(2) + 's">' + (l || '&nbsp;') + '</div>'; }).join('') + '';
   curtain.classList.add('show');
   curtain.addEventListener('click', dismissCurtain);
   document.addEventListener('keydown', function onk(e) { if (curtainDone) { document.removeEventListener('keydown', onk); return; } e.preventDefault(); dismissCurtain(); });
-  setTimeout(dismissCurtain, 3000);
 }
 
 var leaving = false;
@@ -2078,8 +2077,8 @@ if (hasGL) {
 rafId = requestAnimationFrame(frame);
 if (fromPortal && !reduce) {
   var g0 = irisGeometry(); root.classList.add('iris-on'); setIris(g0, 0);
-  run(950, function (t) { setIris(g0, g0.R * t); }, function () { clearIris(); });
-} else if (fromPortal) { clearIris(); }
+  run(950, function (t) { setIris(g0, g0.R * t); }, function () { clearIris(); playCurtain(); });
+} else if (fromPortal) { clearIris(); playCurtain(); }
 else if (!reduce) { playCurtain(); }
 </script>
 </body>

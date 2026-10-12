@@ -1137,7 +1137,6 @@ var Snd = (function () {
     arriveThroughPortal();
   } else {
     root.classList.add("intro-lock");
-    setTimeout(liftCurtain, 3000);
     intro.addEventListener("click", liftCurtain);
     document.addEventListener("keydown", function k(e) {
       if (!introDone && (e.key === "Enter" || e.key === " " || e.key === "Escape")) { liftCurtain(); }
