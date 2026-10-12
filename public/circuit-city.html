@@ -1,0 +1,2086 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Circuit City | Board Rev 3.0</title>
+<meta name="theme-color" content="#03140b">
+<script>
+/* Portal arrival: read the hub's query string before first paint. */
+(function () {
+  try {
+    var q = new URLSearchParams(location.search);
+    if (q.get('portal')) {
+      var c = (q.get('c') || '77,166,255').split(',').map(Number);
+      if (c.length !== 3 || c.some(isNaN)) c = [77, 166, 255];
+      var x = parseFloat(q.get('x')), y = parseFloat(q.get('y'));
+      if (isNaN(x)) x = 0.5;
+      if (isNaN(y)) y = 0.5;
+      var d = document.documentElement;
+      d.classList.add('portal-in');
+      d.style.setProperty('--pc', c.join(','));
+      d.style.setProperty('--px', (x * 100) + '%');
+      d.style.setProperty('--py', (y * 100) + '%');
+      var qx = parseFloat(q.get('px')), qy = parseFloat(q.get('py'));
+      if (isFinite(qx) && isFinite(qy)) {
+        d.style.setProperty('--px', qx + 'px');
+        d.style.setProperty('--py', qy + 'px');
+      }
+    }
+  } catch (e) {}
+})();
+</script>
+<style>
+:root {
+  --bg: #03140b;
+  --cy: #6dffb0;
+  --ice: #e4fff0;
+  --dim: #86b59a;
+  --line: rgba(109, 255, 176, 0.32);
+  --panel: rgba(4, 22, 13, 0.82);
+  --gold: #e8c25a;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --pc: 77, 166, 255;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; overscroll-behavior: none; background: var(--bg); color: var(--ice); font-family: var(--sans); -webkit-font-smoothing: antialiased; }
+html.portal-in { background: rgb(var(--pc)); }
+html.portal-in #world { clip-path: circle(0 at var(--px) var(--py)); }
+body { background: transparent; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--cy); outline-offset: 2px; }
+
+#world { position: fixed; inset: 0; background: var(--bg); overflow: hidden; }
+#gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; outline: none; }
+#gl.grabbing { cursor: grabbing; }
+#gl.pointing { cursor: pointer; }
+#gl:focus-visible { outline: 2px solid var(--cy); outline-offset: -4px; }
+#lab { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.tip {
+  position: absolute; z-index: 6; left: 0; top: 0; pointer-events: none; display: none;
+  padding: 6px 10px; font: 12px var(--mono); letter-spacing: 0.04em; background: var(--panel); border: 1px solid var(--line); white-space: nowrap;
+}
+
+/* ---------- top bar ---------- */
+.bar {
+  position: absolute; left: 0; right: 0; top: 0; z-index: 5; pointer-events: none;
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
+  padding: max(14px, env(safe-area-inset-top)) 14px 0; font-family: var(--mono);
+}
+.bar > * { pointer-events: auto; }
+.return {
+  color: var(--ice);
+  display: inline-flex; align-items: center; gap: 10px; text-decoration: none;
+  font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase;
+  padding: 10px 14px; border: 1px solid var(--line); background: var(--panel);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+}
+.return::before { content: ""; width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--cy); box-shadow: 0 0 8px var(--cy); }
+.return:hover { border-color: var(--cy); }
+.who { text-align: right; font-size: 11px; letter-spacing: 0.1em; line-height: 1.4; text-transform: uppercase; color: var(--dim); text-shadow: 0 0 10px #03140b; }
+.who b { display: block; color: var(--ice); font-weight: 600; font-size: 12px; }
+
+/* ---------- hud ---------- */
+.hint {
+  position: absolute; left: 50%; bottom: calc(max(14px, env(safe-area-inset-bottom)) + 66px); z-index: 4;
+  transform: translateX(-50%); width: max-content; max-width: 88%;
+  padding: 8px 14px; font: 12px var(--mono); letter-spacing: 0.05em; text-align: center; line-height: 1.5;
+  background: var(--panel); border: 1px solid var(--line); pointer-events: none; transition: opacity 0.6s ease;
+}
+.hint.gone { opacity: 0; }
+.hud {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 5; pointer-events: none;
+  display: flex; justify-content: space-between; align-items: flex-end; gap: 10px;
+  padding: 0 14px max(14px, env(safe-area-inset-bottom));
+}
+.hud > * { pointer-events: auto; }
+#mini { width: 120px; height: 80px; border: 1px solid var(--line); background: rgba(3, 16, 9, 0.85); touch-action: none; cursor: crosshair; }
+.hbtn {
+  height: 44px; padding: 0 14px; min-width: 44px; cursor: pointer;
+  font: 12px var(--mono); letter-spacing: 0.12em; text-transform: uppercase;
+  background: var(--panel); border: 1px solid var(--line); color: var(--ice);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); -webkit-tap-highlight-color: transparent;
+}
+.hbtn:hover { border-color: var(--cy); }
+.ctrls { display: grid; grid-template-columns: 44px 44px; gap: 6px; }
+.ctrls .hbtn { padding: 0; font-size: 16px; letter-spacing: 0; }
+.ctrls .wide { grid-column: span 2; font-size: 11px; letter-spacing: 0.12em; }
+
+/* ---------- parts list ---------- */
+#parts {
+  position: absolute; left: 50%; bottom: 0; z-index: 8; transform: translate(-50%, 100%);
+  width: min(580px, 100%); max-height: 72%; overflow-y: auto; overscroll-behavior: contain;
+  background: rgba(3, 17, 10, 0.97); border: 1px solid var(--line); border-bottom: 0;
+  padding: 16px 14px max(18px, env(safe-area-inset-bottom)); transition: transform 0.3s ease; visibility: hidden;
+}
+#parts.open { transform: translate(-50%, 0); visibility: visible; }
+#parts h2 { margin: 0 0 12px; font: 600 12px var(--mono); letter-spacing: 0.18em; text-transform: uppercase; color: var(--cy); display: flex; justify-content: space-between; align-items: center; }
+#parts h2 button { background: none; border: 1px solid var(--line); padding: 6px 12px; cursor: pointer; font: 11px var(--mono); letter-spacing: 0.1em; }
+#parts ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+#parts li button {
+  width: 100%; text-align: left; display: grid; grid-template-columns: 10px 1fr auto; gap: 12px; align-items: center;
+  padding: 11px 12px; cursor: pointer; background: rgba(8, 36, 20, 0.7); border: 1px solid rgba(109, 255, 176, 0.18);
+}
+#parts li button:hover { border-color: var(--cy); }
+#parts li .dot { width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 8px currentColor; background: currentColor; }
+#parts li b { display: block; font: 600 14px var(--sans); }
+#parts li span { display: block; font: 12px var(--sans); color: var(--dim); }
+#parts li em { font: normal 11px var(--mono); color: var(--dim); letter-spacing: 0.08em; text-align: right; }
+#parts li em.s { color: var(--gold); }
+#fallback { position: absolute; z-index: 7; left: 14px; right: 14px; top: 70px; padding: 14px; font: 13px/1.5 var(--mono); background: var(--panel); border: 1px solid var(--line); display: none; }
+#fallback.show { display: block; }
+
+/* ---------- dossier ---------- */
+#dossier {
+  position: fixed; inset: 0; z-index: 60; display: none;
+  background: rgba(2, 10, 6, 0.88); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  overflow-y: auto; overscroll-behavior: contain;
+}
+#dossier.open { display: block; }
+.sheet { max-width: 980px; margin: 0 auto; min-height: 100%; padding: 0 clamp(16px, 4vw, 32px) max(48px, env(safe-area-inset-bottom)); }
+.dbar {
+  position: sticky; top: 0; z-index: 2; display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  padding: max(14px, env(safe-area-inset-top)) 0 12px; font: 12px var(--mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim);
+  background: linear-gradient(#020a06 70%, rgba(2, 10, 6, 0));
+}
+.dbar .led { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 8px; background: currentColor; box-shadow: 0 0 10px currentColor; }
+.dclose { cursor: pointer; padding: 10px 16px; background: var(--panel); border: 1px solid var(--line); font: 12px var(--mono); letter-spacing: 0.14em; text-transform: uppercase; }
+.dclose:hover { border-color: var(--cy); }
+.sheet h2 { margin: 18px 0 0; font: 700 clamp(2rem, 7vw, 3.6rem)/1 var(--sans); letter-spacing: -0.01em; }
+.sheet .tag { margin: 10px 0 0; font-size: clamp(1rem, 2.4vw, 1.2rem); color: var(--dim); max-width: 36em; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 0; padding: 0; list-style: none; }
+.chips li { padding: 5px 11px; border: 1px solid var(--line); font: 12px var(--mono); letter-spacing: 0.06em; }
+.chips li.real { border-color: var(--cy); color: var(--cy); }
+.chips li.sample { border-color: var(--gold); color: var(--gold); }
+.note { margin: 16px 0 0; padding: 10px 14px; max-width: 42em; font-size: 13px; line-height: 1.5; border-left: 3px solid var(--gold); background: rgba(232, 194, 90, 0.08); color: #f3deaa; }
+.sec { margin-top: 32px; }
+.sec h3 { margin: 0 0 12px; font: 600 12px var(--mono); letter-spacing: 0.18em; text-transform: uppercase; color: var(--cy); }
+.sec p { margin: 0; max-width: 42em; line-height: 1.6; }
+.metrics { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.metrics div { padding: 14px; background: rgba(8, 36, 20, 0.6); border: 1px solid var(--line); }
+.metrics b { display: block; font: 600 clamp(1.1rem, 3.4vw, 1.5rem) var(--mono); color: var(--ice); overflow-wrap: anywhere; }
+.metrics span { display: block; margin-top: 4px; font-size: 12px; color: var(--dim); letter-spacing: 0.03em; }
+.points { margin: 0; padding: 0 0 0 18px; display: grid; gap: 8px; max-width: 42em; line-height: 1.55; }
+.flow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.flow .node { padding: 8px 12px; border: 1px solid var(--line); background: rgba(8, 36, 20, 0.6); font: 13px var(--mono); }
+.flow i { font-style: normal; color: var(--cy); }
+.pins { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.pins li { padding: 5px 10px; background: rgba(232, 194, 90, 0.12); border: 1px solid rgba(232, 194, 90, 0.5); color: #f0dc9c; font: 12px var(--mono); }
+pre { margin: 0; padding: 14px; overflow-x: auto; background: #020a06; border: 1px solid var(--line); font: 13px/1.6 var(--mono); color: #c8f5da; -webkit-overflow-scrolling: touch; }
+pre.log { color: #8dffbf; min-height: 9.5em; }
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0 32px; }
+.timeline { list-style: none; margin: 0; padding: 0 0 0 16px; border-left: 1px solid var(--line); display: grid; gap: 14px; }
+.timeline li { position: relative; }
+.timeline li::before { content: ""; position: absolute; left: -21px; top: 7px; width: 9px; height: 9px; border-radius: 50%; background: var(--cy); box-shadow: 0 0 8px var(--cy); }
+.timeline b { font: 600 12px var(--mono); color: var(--cy); display: block; letter-spacing: 0.08em; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.actions a, .actions button {
+  display: inline-block; padding: 11px 18px; cursor: pointer; text-decoration: none;
+  background: rgba(8, 36, 20, 0.8); border: 1px solid var(--line); color: var(--ice); font: 13px var(--mono); letter-spacing: 0.04em;
+}
+.actions a:hover, .actions button:hover { border-color: var(--cy); background: rgba(14, 60, 34, 0.8); }
+.actions .main { background: var(--cy); border-color: var(--cy); color: #03160c; font-weight: 700; }
+.actions .main:hover { background: #a6ffd0; }
+@media (max-width: 720px) { .cols { grid-template-columns: 1fr; } }
+
+/* ---------- boot curtain (direct visits only) ---------- */
+#curtain {
+  position: fixed; inset: 0; z-index: 80; display: none; background: #020a06; color: #8dffbf; cursor: pointer;
+  padding: max(28px, env(safe-area-inset-top)) 22px 28px; font: 14px/1.9 var(--mono); transition: opacity 0.45s ease;
+}
+#curtain.show { display: block; }
+#curtain.gone { opacity: 0; }
+#curtain .ln { opacity: 0; animation: ln 0.01s forwards; white-space: pre-wrap; }
+#curtain .big { display: block; margin-bottom: 14px; font-size: clamp(1.6rem, 6vw, 2.6rem); font-weight: 700; color: var(--ice); letter-spacing: 0.04em; }
+#curtain .skip { position: absolute; left: 22px; right: 22px; bottom: max(22px, env(safe-area-inset-bottom)); opacity: 0.6; font-size: 12px; }
+@keyframes ln { to { opacity: 1; } }
+
+/* ---------- portal iris ---------- */
+#iris { position: fixed; z-index: 90; display: none; border-radius: 50%; pointer-events: none; transform: translate(-50%, -50%); border: 4px solid rgb(var(--pc)); box-shadow: 0 0 24px rgba(var(--pc), 0.7); }
+#iris::before, #iris::after { content: ""; position: absolute; border-radius: 50%; border: 3px dashed rgba(var(--pc), 0.85); }
+#iris::before { inset: -14px; animation: spin 2.4s linear infinite; }
+#iris::after { inset: -28px; border-style: dotted; animation: spin 3.6s linear infinite reverse; }
+@keyframes spin { to { transform: rotate(360deg); } }
+html.iris-on #iris { display: block; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { #iris::before, #iris::after { animation: none; } #parts { transition: none; } }
+</style>
+</head>
+<body>
+<div id="world">
+  <canvas id="gl" tabindex="0" aria-label="3D circuit board. Drag to move. Two fingers to zoom, twist and tilt. On a computer, right-drag to rotate and scroll to zoom. Arrow keys pan, Q and E rotate, R and F tilt, plus and minus zoom. Use the parts list to jump to a project."></canvas>
+  <canvas id="lab" aria-hidden="true"></canvas>
+  <div class="tip" id="tip"></div>
+
+  <header class="bar">
+    <a class="return" href="hub-homepage.html">Return to hub</a>
+    <div class="who"><b>Your Name</b>Software Developer</div>
+  </header>
+
+  <div class="hint" id="hint"></div>
+  <div id="fallback" role="status"></div>
+
+  <div class="hud">
+    <canvas id="mini" aria-hidden="true"></canvas>
+    <button class="hbtn" id="partsBtn" type="button" aria-expanded="false" aria-controls="parts">Parts list</button>
+    <div class="ctrls">
+      <button class="hbtn" id="zin" type="button" aria-label="Zoom in">+</button>
+      <button class="hbtn" id="zout" type="button" aria-label="Zoom out">-</button>
+      <button class="hbtn" id="rotL" type="button" aria-label="Rotate left">&#8634;</button>
+      <button class="hbtn" id="rotR" type="button" aria-label="Rotate right">&#8635;</button>
+      <button class="hbtn wide" id="tilt" type="button" aria-label="Change tilt">Tilt</button>
+    </div>
+  </div>
+
+  <section id="parts" aria-label="Parts list">
+    <h2>Parts list <button type="button" id="partsClose">Close</button></h2>
+    <ul id="partsUl"></ul>
+  </section>
+
+  <div class="sr" id="live" aria-live="polite"></div>
+</div>
+
+<div id="dossier" role="dialog" aria-modal="true" aria-labelledby="dname" aria-hidden="true">
+  <div class="sheet" id="sheet"></div>
+</div>
+
+<div id="curtain" aria-hidden="true"></div>
+<div id="iris" aria-hidden="true"></div>
+
+<script id="sound">
+/* ---------- Sound: tiny synthesized effects, no audio files ----------
+   Off until the visitor chooses sound on the hub. The choice is saved in the
+   browser so every page follows it. Browsers only allow audio after a tap or
+   click, so each page unlocks it on the first one. */
+var Snd = (function () {
+  var KEY = 'cas-portfolio-sound', ctx = null, master = null, noiseBuf = null, lastGesture = -1e9, last = {};
+  function pref() { try { return localStorage.getItem(KEY); } catch (e) { return null; } }
+  function set(v) { try { localStorage.setItem(KEY, v); } catch (e) {} }
+  function on() { return pref() === 'on'; }
+  function ensure() {
+    if (!ctx) {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      try { ctx = new AC(); } catch (e) { return null; }
+      master = ctx.createGain();
+      master.gain.value = 0.55;
+      master.connect(ctx.destination);
+    }
+    if (ctx.state === 'suspended') { try { ctx.resume(); } catch (e) {} }
+    return ctx;
+  }
+  function gesture() { lastGesture = performance.now(); if (on()) ensure(); }
+  ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown'].forEach(function (ev) {
+    window.addEventListener(ev, gesture, { passive: true, capture: true });
+  });
+
+  function env(g, t, a, peak, dur) {
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(peak, t + a);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  }
+  function tone(type, f0, f1, t, dur, peak, a) {
+    var o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(f0, t);
+    if (f1 && f1 !== f0) o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    env(g, t, a || 0.012, peak, dur);
+    o.connect(g); g.connect(master);
+    o.start(t); o.stop(t + dur + 0.05);
+  }
+  function noise(t, dur, peak, type, f0, f1, q) {
+    if (!noiseBuf) {
+      noiseBuf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.6), ctx.sampleRate);
+      var d = noiseBuf.getChannelData(0);
+      for (var i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    }
+    var s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+    s.buffer = noiseBuf;
+    f.type = type; f.Q.value = q || 1;
+    f.frequency.setValueAtTime(f0, t);
+    if (f1 && f1 !== f0) f.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    env(g, t, 0.01, peak, dur);
+    s.connect(f); f.connect(g); g.connect(master);
+    s.start(t); s.stop(t + Math.min(dur + 0.05, 0.6));
+  }
+
+  var NOTES = [523.25, 587.33, 659.25, 783.99, 880, 987.77, 1046.5, 1174.66, 1318.51];
+  var SOUNDS = {
+    blip: function (t) { tone('triangle', 880, 1320, t, 0.07, 0.025, 0.004); },
+    zap: function (t) { tone('triangle', 260, 1500, t, 0.5, 0.035, 0.03); noise(t, 0.35, 0.012, 'bandpass', 600, 3200, 1.2); },
+    lock: function (t) { tone('sine', 170, 110, t, 0.3, 0.09, 0.008); tone('triangle', 1175, 1568, t + 0.03, 0.14, 0.03, 0.005); },
+    click: function (t) { tone('square', 700, 350, t, 0.05, 0.02, 0.003); },
+    beep: function (t, f) { tone('square', f || 600, 0, t, 0.14, 0.02, 0.006); tone('sine', (f || 600) * 2, 0, t, 0.1, 0.01, 0.006); },
+    buzz: function (t) { tone('sawtooth', 160, 150, t, 0.35, 0.035, 0.01); noise(t, 0.3, 0.015, 'bandpass', 900, 0, 2); },
+    boing: function (t) { tone('sine', 180, 520, t, 0.12, 0.07, 0.005); tone('sine', 520, 220, t + 0.12, 0.28, 0.06, 0.005); },
+    spin: function (t) { noise(t, 0.55, 0.03, 'bandpass', 300, 2200, 1.4); tone('triangle', 140, 420, t, 0.5, 0.02, 0.05); },
+    chase: function (t) { [0, 1, 2, 3, 4].forEach(function (k) { tone('triangle', 660 + k * 110, 0, t + k * 0.07, 0.07, 0.02, 0.004); }); },
+    hiss: function (t) { noise(t, 0.5, 0.03, 'highpass', 4000, 6000, 0.7); },
+    spark: function (t) { noise(t, 0.12, 0.05, 'highpass', 3500, 0, 0.8); tone('triangle', 2200, 500, t, 0.14, 0.03, 0.004); },
+    chime: function (t, i) {                       /* soft bell on a portal */
+      var f = NOTES[(i || 0) % NOTES.length];
+      tone('sine', f, 0, t, 0.7, 0.05, 0.01);
+      tone('sine', f * 2, 0, t, 0.4, 0.015, 0.01);
+    },
+    open: function (t) {                           /* rising shimmer as a portal opens */
+      tone('sine', 220, 660, t, 1.1, 0.05, 0.25);
+      tone('triangle', 330, 990, t + 0.05, 1.0, 0.025, 0.25);
+      [1318.51, 1567.98, 1975.53].forEach(function (f, k) { tone('sine', f, 0, t + 0.45 + k * 0.18, 0.5, 0.02, 0.01); });
+    },
+    close: function (t) {                          /* soft fall as a world closes */
+      tone('sine', 660, 170, t, 0.7, 0.05, 0.02);
+      noise(t, 0.5, 0.025, 'lowpass', 1800, 300, 0.7);
+    },
+    thunk: function (t) {                          /* a frame or panel opens */
+      tone('sine', 190, 120, t, 0.28, 0.09, 0.008);
+      tone('sine', 784, 0, t + 0.02, 0.35, 0.015, 0.01);
+    },
+    tick: function (t) {                           /* a paper tick */
+      noise(t, 0.06, 0.05, 'highpass', 3200, 0, 0.8);
+      tone('sine', 1500, 900, t, 0.05, 0.015, 0.004);
+    },
+    slam: function (t) {                           /* a comic panel lands */
+      tone('sine', 150, 55, t, 0.22, 0.12, 0.006);
+      noise(t, 0.12, 0.05, 'lowpass', 1200, 200, 0.7);
+    },
+    pop: function (t) {                            /* a sound effect word pops */
+      tone('sine', 420, 140, t, 0.14, 0.09, 0.005);
+    }
+  };
+  var MIN = { chime: 140, tick: 40, slam: 120, pop: 120, blip: 110, click: 40, beep: 60, spark: 80 };
+
+  function play(name, arg) {
+    if (!on() || !SOUNDS[name]) return;
+    var now = performance.now();
+    if (last[name] && now - last[name] < (MIN[name] || 60)) return;
+    var c = ensure();
+    if (!c) return;
+    function go() { last[name] = performance.now(); SOUNDS[name](c.currentTime + 0.01, arg); }
+    if (c.state === 'running') { go(); return; }
+    /* still waking up: only play if this came from a tap or click just now */
+    if (now - lastGesture < 1000 && c.resume) {
+      c.resume().then(function () { if (performance.now() - lastGesture < 1500) go(); }).catch(function () {});
+    }
+  }
+  /* Scroll flow: an airy whoosh that follows how fast the page is moving.
+     It only exists while moving and fades out when scrolling stops. */
+  var fl = null, flStop = 0, flowBuf = null;
+  function flowKill() {
+    if (!fl) return;
+    try { fl.src.stop(); fl.o.stop(); } catch (e) {}
+    fl = null;
+  }
+  function flowStart() {
+    if (!flowBuf) {
+      flowBuf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 2.5), ctx.sampleRate);
+      var d = flowBuf.getChannelData(0);
+      for (var i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    }
+    var t = ctx.currentTime;
+    var src = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+    var o = ctx.createOscillator(), og = ctx.createGain();
+    src.buffer = flowBuf; src.loop = true;
+    f.type = 'bandpass'; f.Q.value = 0.8; f.frequency.value = 400;
+    g.gain.value = 0.0001;
+    o.type = 'sine'; o.frequency.value = 260;
+    og.gain.value = 0.0001;
+    src.connect(f); f.connect(g); g.connect(master);
+    o.connect(og); og.connect(master);
+    src.start(t); o.start(t);
+    fl = { src: src, f: f, g: g, o: o, og: og };
+  }
+  function flow(v, pos) {
+    if (!on()) { flowKill(); return; }
+    if (!ctx || ctx.state !== 'running') return;
+    v = Math.max(0, Math.min(1, v || 0));
+    if (!fl) { if (v < 0.02) return; flowStart(); }
+    var t = ctx.currentTime;
+    fl.g.gain.setTargetAtTime(Math.max(0.0001, v * 0.07), t, v > 0 ? 0.08 : 0.35);
+    fl.f.frequency.setTargetAtTime(350 + v * 1900, t, 0.12);
+    fl.og.gain.setTargetAtTime(Math.max(0.0001, v * 0.012), t, 0.15);
+    fl.o.frequency.setTargetAtTime(200 + (pos || 0) * 260, t, 0.2);
+    clearTimeout(flStop);
+    if (v < 0.02) flStop = setTimeout(flowKill, 1800);
+  }
+  return { play: play, on: on, pref: pref, set: set, ensure: ensure, flow: flow };
+})();
+
+</script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" crossorigin="anonymous"></script>
+
+<script>
+/* ===================================================================
+   CONTENT: every chip on the board comes from this block.
+   "real: true" chips are real projects. "real: false" chips are sample
+   projects that show the kind of work a client could have presented here.
+   =================================================================== */
+var BW = 60, BD = 40;   /* board size in world units (x by z) */
+
+var CORE = {
+  id: 'core', name: 'CORE', part: 'CPU-0001', real: true, color: '#6dffb0',
+  tag: 'I build interactive portfolios that show off your work.',
+  year: 'Now', role: 'Portfolio architect and developer', status: 'Taking on clients', type: 'About',
+  stack: ['TypeScript', 'JavaScript', 'React', 'Three.js', 'Node.js', 'HTML and CSS', 'Firebase', 'GitHub Pages'],
+  metrics: [['Real projects on this board', '8'], ['Sample projects', '11'], ['Interactive parts', 'Every one'], ['Your board', 'Next']],
+  about: 'This board is a demo of what I can build for you. Each chip is a project, shown the way I would present yours: a clear page for every piece of work, with the story, the tools and the links. Explore it, then imagine your own work in its place.',
+  points: ['Real projects sit next to sample projects, and every sample is clearly labeled.', 'The same idea works for designers, developers, illustrators, writers and studios.', 'Every world on the hub is a different way to show the same work.'],
+  arch: ['Your work', 'A story for each piece', 'A world to explore', 'Clients who understand it'],
+  code: ['// the idea in one line', 'const portfolio = yourWork.map(tellItWell);', 'show(portfolio, { style: yourTaste });'],
+  codeNote: true,
+  log: ['$ whoami', 'your-name', '$ ls projects/', '19 entries. 8 real, 11 sample.', '$ echo "tap a chip"'],
+  timeline: [['Step 1', 'You send your work'], ['Step 2', 'We pick the world that suits it'], ['Step 3', 'I build and you review'], ['Step 4', 'You go live']],
+  links: {}
+};
+
+var REAL = [
+  { id: 'cascv', name: 'CAS CV Builder', part: 'CVB-0001', real: true, color: '#6dffb0',
+    tag: 'A private CV builder with PDF export and an ATS keyword checker.', year: 'Ongoing', role: 'Developer', status: 'Live, login required', type: 'Web app',
+    stack: ['Firebase Authentication', 'Firestore', 'JavaScript', 'GitHub Pages', 'PDF export'],
+    metrics: [['Sign-in', 'Firebase email and password'], ['Storage', 'Firestore, synced across devices'], ['Templates', 'Several, with live thumbnails'], ['Export', 'PDF with real pagination'], ['Extra tool', 'ATS keyword checker'], ['Build step', 'None']],
+    about: 'A CV builder for CAS Brand Co. and CAS Writing Services. Import text or start from scratch, pick a template, watch the preview update, and export a PDF that splits cleanly across pages.',
+    points: ['A text parser imports an existing resume, and the editor lets you drag sections into a new order.', 'Reimport replaces the content but keeps your customize settings.', 'CVs live in Firestore, so they follow the account to any browser or device.'],
+    arch: ['Import text', 'Parser', 'Editor', 'Template', 'PDF export'],
+    code: ['// one document per CV', 'users/{uid}/cvs/{cvId}', '', '// synced across every device the account signs into'], codeNote: true,
+    log: ['$ open cascv', '[ok] firebase auth: signed in', '[ok] firestore: cvs loaded', '[ok] templates ready', '[ok] pdf export ready'],
+    timeline: [['Milestone', 'Sign-in and dashboard'], ['Milestone', 'Editor, templates and import'], ['Milestone', 'PDF export and ATS checker'], ['Milestone', 'Firestore sync across devices']],
+    links: { repo: 'https://github.com/Es0sA/cascv', demo: 'https://es0sa.github.io/cascv/', demoLabel: 'Open the app (login required)' } },
+
+  { id: 'diesel', name: 'CAS Energy', part: 'CSE-0002', real: true, color: '#ffb84d',
+    tag: 'A bulk diesel marketplace with escrow logistics for Nigeria.', year: 'Ongoing', role: 'Developer', status: 'Built', type: 'Marketplace platform',
+    stack: ['React 18', 'Vite', 'Tailwind CSS', 'Lucide Icons', 'GitHub Actions', 'GitHub Pages'],
+    metrics: [['Depots on the ticker', '6'], ['Delivery sign-off radius', '100 m'], ['User roles', 'Buyer, marketer, driver'], ['Escrow', 'Funds locked upfront'], ['Legal pages', 'Terms, privacy, disputes, cookies']],
+    about: 'A trading platform that connects corporate buyers, licensed marketers and fleet drivers. Money sits in escrow until the driver signs off at the buyer gate, and both sides are protected.',
+    points: ['A live ticker shows certified diesel prices across Apapa, Ijegun Egba, Warri, Oghara, Port Harcourt and Calabar.', 'Buyers register their site with a GPS pin and truck height and axle limits.', 'Drivers get a mobile cockpit with navigation, waypoint seals and delivery updates.'],
+    arch: ['Buyer', 'Escrow terminal', 'Marketer desk', 'Fleet', 'Driver cockpit'],
+    code: ['// illustration of the sign-off rule', 'if (distanceToBuyerGate(driver) <= 100) {', '  allowDischargeSignOff();', '}'], codeNote: true,
+    log: ['$ open cas-energy', '[ok] depot ticker: 6 depots', '[ok] escrow terminal ready', '[ok] driver cockpit ready'],
+    timeline: [['Core', 'Live depot price ticker'], ['Core', 'Geofence escrow terminal'], ['Core', 'Marketer pricing desk and driver cockpit']],
+    links: { repo: 'https://github.com/Es0sA/cas-diesel' } },
+
+  { id: 'synapse', name: 'Synapse Flow', part: 'SNF-0003', real: true, color: '#b48cff',
+    tag: 'A workflow automation interface with a draggable 3D node canvas.', year: 'Ongoing', role: 'Designer and developer', status: 'Built', type: 'Web interface',
+    stack: ['HTML5', 'CSS 3D transforms', 'JavaScript', 'SVG'],
+    metrics: [['Canvas', 'Draggable nodes, live cables'], ['Cable redraw', '60 FPS'], ['Connectors', '500+ configured'], ['Code editor', 'Python and JavaScript'], ['Build step', 'None']],
+    about: 'A dark, high-performance interface for building automations. Drag nodes around a 3D canvas, watch curved cables follow, and run a step-by-step simulation with live telemetry.',
+    points: ['Cubic bezier cables recalculate as you drag, and a pulse travels along them during a run.', 'A bento-style feature grid shows connectors, control flow and an embedded code editor.', 'A scrolling card deck covers debugging, time-travel inspection and rollouts.'],
+    arch: ['Node palette', '3D canvas', 'Bezier cables', 'Simulation runner', 'Telemetry'],
+    code: ['// a cable between two nodes', 'M x1 y1 C x1+dx y1, x2-dx y2, x2 y2'], codeNote: true,
+    log: ['$ python3 -m http.server 54321', '[ok] canvas ready', '[ok] nodes: draggable', '[ok] simulation runner idle'],
+    timeline: [['Feature', '3D perspective grid'], ['Feature', 'Interactive workflow canvas'], ['Feature', 'Bento grid and sticky card deck']],
+    links: { repo: 'https://github.com/Es0sA/synapse-flow' } },
+
+  { id: 'cloner', name: 'Website Cloner', part: 'WCL-0004', real: true, color: '#4da6ff',
+    tag: 'A careful command-line tool that copies public pages as editable references.', year: 'Ongoing', role: 'Developer', status: 'Open source (MIT)', type: 'Developer tool',
+    stack: ['Node.js', 'Command line', 'Telegram bot', 'systemd'],
+    metrics: [['Default crawl depth', '0 (one page)'], ['Page cap', '20'], ['Request delay', '300 ms'], ['Parallel downloads', '4'], ['Asset size cap', '25 MB'], ['Licence', 'MIT']],
+    about: 'Copies a public page, with its styles, scripts and images, into a local folder that opens straight from disk. Built for design reference and remixing, with safety defaults first.',
+    points: ['Refuses pages with login forms unless you override it for a site you own.', 'Respects robots.txt and never leaves the starting domain.', 'Writes a manifest of the source and time, and ships a command-builder page and a Telegram bot front end.'],
+    arch: ['URL', 'robots.txt check', 'Fetch', 'Rewrite paths', 'Local copy'],
+    code: ['node website-clone-cli.js https://example.com \\', '  --out ./clones/example-com --depth 1 --max-pages 15'],
+    log: ['$ node website-clone-cli.js https://example.com', '[ok] robots.txt allows crawling', '[ok] assets downloaded', '[ok] references rewritten', '[ok] manifest.json written'],
+    timeline: [['Feature', 'Command-line cloner'], ['Feature', 'Command-builder web page'], ['Feature', 'Telegram bot front end']],
+    links: { repo: 'https://github.com/es0sa/website-cloner' } },
+
+  { id: 'elusive', name: 'Elusive Button', part: 'ELB-0005', real: true, color: '#ff6f91',
+    tag: 'A prank: a relief-grant confirmation button you can never click.', year: 'Ongoing', role: 'Developer', status: 'Prank project', type: 'Prank and UX experiment',
+    stack: ['HTML', 'CSS', 'JavaScript'],
+    metrics: [['Countdown', '90 s'], ['Alert state', 'Final 20 s'], ['Dependencies', 'None'], ['Build step', 'None'], ['Can you click it?', 'No']],
+    about: 'A joke page dressed as an official grant portal. The confirmation button dodges every tap and cursor, then the session times out. It is a prank for fun, not a real portal, and it handles no money or personal data.',
+    points: ['Proximity detection moves the button before a click can land, with touch handling for phones.', 'A 90-second countdown switches to an alert state, then locks with a timeout screen.', 'The retry button resets the clock and the button for another go.'],
+    arch: ['Pointer', 'Proximity check', 'Dodge', 'Countdown', 'Timeout screen'],
+    code: ['// when the pointer gets close, jump away', 'if (distance(pointer, button) < threshold) {', '  moveToFurthestSafeSpot(button);', '}'], codeNote: true,
+    log: ['$ open elusive-button', '[ok] countdown: 01:30', '[warn] button is nervous', '[fail] click not registered'],
+    timeline: [['Idea', 'A button that runs away'], ['Build', 'Touch and mouse dodging'], ['Polish', 'Countdown, timeout and retry']],
+    links: { repo: 'https://github.com/Es0sA/humanitarian-relief-grant' } },
+
+  { id: 'ailab', name: 'AI Lab', part: 'AIL-0006', real: true, color: '#7bd88f',
+    tag: 'A compilation of training materials for agentic AI.', year: 'Ongoing', role: 'Compiler and developer', status: 'Built', type: 'Learning resource',
+    stack: ['Static site', 'GitHub'],
+    metrics: [['Format', 'Training compilation'], ['Topic', 'Agentic AI'], ['Origin', 'Based on a brochure'], ['Shipped as', 'Repository and site']],
+    about: 'I came across a brochure on agentic AI and turned it into a repository and a small site that gathers the training material in one place.',
+    points: ['Collects learning material on agentic AI in one place.', 'Organized as a repository plus a site, so it is easy to browse.', 'Built as a learning aid you can keep adding to.'],
+    arch: ['Brochure', 'Repository', 'Site', 'Learners'],
+    code: ['# ai-lab', 'Training materials for agentic AI.', '(see the repository for the full set)'],
+    log: ['$ open ai-lab', '[ok] materials indexed', '[ok] site ready'],
+    timeline: [['Start', 'Found the brochure'], ['Build', 'Made the repository'], ['Ship', 'Published the site']],
+    links: { repo: 'https://github.com/Es0sA/ai-lab' } },
+
+  { id: 'comicsite', name: 'Comic Site', part: 'CMC-0007', real: true, color: '#ffd23f',
+    tag: 'A test site for Mountorama Studio.', year: 'Ongoing', role: 'Developer', status: 'Test build', type: 'Prototype site',
+    stack: ['Web (test build)'],
+    metrics: [['Purpose', 'Layout test'], ['Subject', 'Comic assets'], ['Status', 'Prototype'], ['Led to', 'Mountorama Studio site']],
+    about: 'A trial site made while working out how the Mountorama Studio website should show comic assets and layouts. It was a test run, and the finished work is the Mountorama Studio project.',
+    points: ['Tested how comic pages and artwork should be shown.', 'Helped settle the layout before the real build.', 'Kept as a record of the experiment.'],
+    arch: ['Comic assets', 'Test layout', 'Review', 'Studio site'],
+    code: ['# comic-site', 'A test site for Mountorama Studio.'],
+    log: ['$ open comic-site', '[ok] layout loaded', '[ok] sample pages shown'],
+    timeline: [['Test', 'Tried layouts for comic assets'], ['Result', 'Informed the studio site']],
+    links: { repo: 'https://github.com/Es0sA/comic-site' } },
+
+  { id: 'mountorama', name: 'Mountorama Studio', part: 'MTS-0008', real: true, color: '#ff8a4d',
+    tag: 'A portfolio website for a comic illustration studio.', year: 'In progress', role: 'Website developer', status: 'In progress', type: 'Studio portfolio',
+    stack: ['Web'],
+    metrics: [['Type', 'Studio portfolio'], ['For', 'Mountorama Studio'], ['Studio owner', 'Evans'], ['Status', 'In progress']],
+    about: 'The website for Mountorama Studio, a comic illustration studio owned by Evans. I am building it as the studio portfolio, so its artwork and commissions have a proper home online.',
+    points: ['Built to show the studio artwork and comic projects.', 'Grew out of the earlier Comic Site test.', 'A good example of a portfolio built for someone else.'],
+    arch: ['Studio artwork', 'Portfolio pages', 'Commissions', 'Clients'],
+    code: ['# mountorama-studio', 'Portfolio website for a comic illustration studio.'],
+    log: ['$ open mountorama-studio', '[ok] pages loaded', '[ok] artwork gallery ready'],
+    timeline: [['Test', 'Comic Site prototype'], ['Build', 'Studio portfolio site'], ['Next', 'Launch with the studio']],
+    links: { repo: 'https://github.com/Es0sA/mountorama-studio' } }
+];
+
+var SAMPLES = [{"id": "ledgerline", "name": "Ledgerline", "part": "LDG-2205", "color": "#4da6ff", "tag": "A double-entry ledger API for small lenders.", "year": "2023 to 2025", "role": "Lead backend developer", "status": "In production", "type": "Backend API", "stack": ["TypeScript", "Fastify", "PostgreSQL 16", "Redis", "BullMQ", "Docker", "AWS ECS", "OpenTelemetry"], "metrics": [["Transactions per day", "1.2M"], ["p95 latency", "38 ms"], ["Uptime, 12 months", "99.97%"], ["Test coverage", "91%"], ["API endpoints", "46"], ["Commits", "1,412"]], "about": "A ledger service where every movement of money is two rows that must balance, enforced by the database and not only by the code. Built for lenders who need audit trails they can hand to a regulator.", "points": ["Idempotency keys on every write, so retries never double-post.", "A nightly job reconciles the ledger against bank statements and flags drift above 0.01.", "Row-level security keeps each lender data separate."], "arch": ["Client", "API gateway", "Fastify service", "PostgreSQL", "Redis queue"], "code": ["BEGIN;", "INSERT INTO journal (id, ts, ref)", "  VALUES ($1, now(), $2);", "INSERT INTO entries (journal_id, account_id, amount_minor, side)", "  VALUES ($1, $3, $5, 'debit'), ($1, $4, $5, 'credit');", "-- trigger: sum(debit) = sum(credit) per journal", "COMMIT;"], "log": ["$ ledgerline start --env=production", "[ok] migrations: 118 applied", "[ok] postgres pool: 20 connections", "[ok] redis: connected", "[ok] listening on :8080", "[ok] reconcile job scheduled 02:00 UTC"], "timeline": [["2023-03", "Prototype with 4 endpoints"], ["2023-09", "First lender onboarded"], ["2024-06", "Passed 1M transactions per day"], ["2025-02", "Multi-currency support shipped"]], "links": {"repo": "#", "demo": "#"}, "real": false}, {"id": "tidewatch", "name": "Tidewatch", "part": "TDW-4410", "color": "#3ddcc6", "tag": "Live water-quality dashboard for coastal sensors.", "year": "2024", "role": "Full-stack developer", "status": "In production", "type": "Real-time dashboard", "stack": ["React 18", "Vite", "WebSocket", "MQTT", "InfluxDB", "Leaflet", "Node.js", "Grafana"], "metrics": [["Sensors online", "3,412"], ["Refresh interval", "5 s"], ["Alerts per day", "27"], ["Data retention", "24 months"], ["Lighthouse score", "96"], ["JS bundle", "168 KB gz"]], "about": "A map-first dashboard that shows turbidity, salinity and temperature from buoys along a coastline. Operators see a problem on the map before the alert email arrives.", "points": ["Readings stream in over MQTT and fan out to browsers over WebSocket.", "Clustered markers keep the map fast with thousands of sensors.", "Alert rules are editable in the UI and stored as versioned JSON."], "arch": ["Buoy", "MQTT broker", "Ingest worker", "InfluxDB", "WebSocket hub", "React map"], "code": ["function connect(attempt = 0) {", "  const ws = new WebSocket(WS_URL);", "  ws.onopen = () => (attempt = 0);", "  ws.onmessage = (e) => store.push(JSON.parse(e.data));", "  ws.onclose = () =>", "    setTimeout(() => connect(attempt + 1), Math.min(30000, 500 * 2 ** attempt));", "}"], "log": ["$ tidewatch ingest --broker=mqtt://edge-1", "[ok] subscribed: buoys/+/readings", "[ok] influx write batch: 500 points / 1 s", "[ok] websocket clients: 41", "[warn] buoy 2207 silent for 14 min"], "timeline": [["2024-01", "Pilot with 120 buoys"], ["2024-05", "Alert rules editor"], ["2024-09", "Scaled to 3,400 sensors"]], "links": {"repo": "#", "demo": "#"}, "real": false}, {"id": "stitchbook", "name": "Stitchbook", "part": "STB-0731", "color": "#ffb84d", "tag": "A headless storefront for a small apparel brand.", "year": "2024", "role": "Front-end lead", "status": "In production", "type": "E-commerce", "stack": ["Next.js 14", "Shopify Storefront API", "GraphQL", "Tailwind", "Stripe", "Cloudflare"], "metrics": [["Conversion lift", "+23%"], ["Largest paint", "1.4 s"], ["Catalog SKUs", "612"], ["Orders per month", "4,800"], ["Cart abandonment", "-11%"], ["Lighthouse score", "98"]], "about": "A fast storefront that sits in front of Shopify. Product pages are generated ahead of time and revalidated when stock or price changes, so shoppers never wait on the catalog.", "points": ["Incremental regeneration refreshes a product page within seconds of an edit.", "A size-guide drawer cut returns for fit by 9%.", "Checkout stays on Shopify, so payments and tax need no custom code."], "arch": ["Shopper", "Cloudflare edge", "Next.js", "Storefront API", "Shopify"], "code": ["query Product($handle: String!) {", "  product(handle: $handle) {", "    title", "    variants(first: 20) {", "      nodes { id title availableForSale price { amount } }", "    }", "  }", "}"], "log": ["$ next build", "[ok] 612 product pages generated", "[ok] revalidate: 60 s", "[ok] image formats: avif, webp", "[ok] deployed to edge: 3 regions"], "timeline": [["2024-02", "Design handoff"], ["2024-04", "Launch on staging"], ["2024-05", "Live, +23% conversion by month two"]], "links": {"repo": "#", "demo": "#"}, "real": false}, {"id": "pathfinder", "name": "Pathfinder", "part": "PTH-9120", "color": "#b48cff", "tag": "Delivery route optimizer for a regional courier.", "year": "2023", "role": "Developer and data engineer", "status": "In production", "type": "Optimization service", "stack": ["Python 3.12", "FastAPI", "OR-Tools", "PostGIS", "Celery", "Mapbox"], "metrics": [["Routes solved per day", "380"], ["Fuel saved", "17%"], ["Solve time, 60 stops", "2.4 s"], ["Vehicles", "54"], ["Average stops per route", "41"], ["ETA accuracy", "+/- 4 min"]], "about": "Takes the morning list of parcels and returns the order each driver should visit them in, respecting time windows, vehicle capacity and traffic.", "points": ["Vehicle routing problem solved with guided local search under a time limit.", "Travel times come from a cached matrix, refreshed every 15 minutes.", "Dispatchers can pin a stop and re-solve in under three seconds."], "arch": ["Order import", "Geocoder", "Matrix cache", "OR-Tools solver", "Dispatcher UI"], "code": ["search = pywrapcp.DefaultRoutingSearchParameters()", "search.local_search_metaheuristic = (", "    routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH)", "search.time_limit.seconds = 3", "solution = routing.SolveWithParameters(search)"], "log": ["$ pathfinder solve --depot=north", "[ok] orders: 2,214", "[ok] vehicles: 54", "[ok] matrix: 2,214 x 2,214 (cached)", "[ok] solved in 2.41 s, total 1,806 km"], "timeline": [["2023-04", "First solver prototype"], ["2023-08", "Time windows added"], ["2023-11", "Rolled out to all depots"]], "links": {"repo": "#", "demo": "#"}, "real": false}, {"id": "echo", "name": "Echo Chamber", "part": "ECH-6600", "color": "#ff6f91", "tag": "Realtime group chat built to hold 40,000 people at once.", "year": "2022 to 2024", "role": "Backend developer", "status": "Shipped", "type": "Realtime messaging", "stack": ["Elixir 1.16", "Phoenix Channels", "PostgreSQL", "Presence", "Kubernetes", "Prometheus"], "metrics": [["Concurrent users", "41,000"], ["Message latency p99", "120 ms"], ["Rooms", "9,800"], ["Messages per day", "6.4M"], ["Cluster nodes", "3"], ["Uptime", "99.95%"]], "about": "A chat backend for community events where thousands of people join one room at the same moment. The Erlang runtime does the heavy lifting, and the code stays small.", "points": ["Each room is a lightweight process, so one slow room never blocks another.", "Presence data syncs across nodes without a central store.", "Messages persist asynchronously so the hot path stays fast."], "arch": ["Client", "Load balancer", "Phoenix node", "PubSub cluster", "PostgreSQL"], "code": ["def handle_in(\"new_msg\", %{\"body\" => body}, socket) do", "  msg = %{user: socket.assigns.user, body: body, at: DateTime.utc_now()}", "  broadcast!(socket, \"new_msg\", msg)", "  Task.start(fn -> Chat.persist(socket.assigns.room, msg) end)", "  {:noreply, socket}", "end"], "log": ["$ iex -S mix phx.server", "[info] node echo@10.0.2.4 joined cluster", "[info] rooms active: 9,812", "[info] connections: 41,006", "[info] gc: 4 ms"], "timeline": [["2022-06", "Prototype, 2,000 users"], ["2023-03", "Clustered across three nodes"], ["2024-01", "Hit 41,000 concurrent in a live event"]], "links": {"repo": "#", "demo": "#"}, "real": false}, {"id": "greenhouse", "name": "Greenhouse OS", "part": "GHO-1180", "color": "#7bd88f", "tag": "Firmware that keeps twelve greenhouse zones in range.", "year": "2023", "role": "Embedded developer", "status": "Deployed", "type": "Embedded firmware", "stack": ["Rust (no_std)", "Embassy", "ESP32-S3", "MQTT", "I2C sensors", "OTA updates"], "metrics": [["Climate zones", "12"], ["Sensor poll", "2 s"], ["Flash used", "612 KB of 4 MB"], ["Average draw", "0.9 W"], ["Yield change", "+14%"], ["OTA success rate", "99.2%"]], "about": "Firmware for a controller that reads temperature, humidity and soil moisture, then drives vents, fans and drip lines. It keeps working when the network does not.", "points": ["A PID loop per zone with anti-windup keeps temperature within half a degree.", "Local rules keep running offline and sync when Wi-Fi returns.", "Signed over-the-air updates roll back automatically if boot fails."], "arch": ["Sensors", "ESP32-S3", "Control loop", "Actuators", "MQTT", "Dashboard"], "code": ["let error = setpoint - reading;", "integral = (integral + error * dt).clamp(-I_MAX, I_MAX);", "let derivative = (error - last_error) / dt;", "let out = KP * error + KI * integral + KD * derivative;", "vent.set_duty(out.clamp(0.0, 1.0));"], "log": ["$ espflash monitor", "[boot] greenhouse-os 0.9.3 (slot A)", "[i2c] 24 sensors found", "[net] wifi connected, rssi -58", "[ctl] zone 7 temp 24.6 C, vent 31%"], "timeline": [["2023-02", "Bench prototype with 2 zones"], ["2023-06", "OTA updates added"], ["2023-10", "Installed across 12 zones"]], "links": {"repo": "#", "demo": "#"}, "real": false}, {"id": "lumen", "name": "Lumen CMS", "part": "LMN-3302", "color": "#ffd86b", "tag": "A small, fast CMS that ships as one 14 MB binary.", "year": "2025", "role": "Creator and maintainer", "status": "Open source", "type": "Developer tool", "stack": ["Go 1.22", "SQLite (WAL)", "HTMX", "Caddy", "Litestream", "Markdown"], "metrics": [["Binary size", "14 MB"], ["Cold start", "90 ms"], ["Sites served", "230"], ["Pages built per minute", "1,900"], ["Idle memory", "38 MB"], ["Backup interval", "10 s"]], "about": "A content manager for people who find the big ones heavy. One binary, one database file, and a writing screen that loads instantly on a slow connection.", "points": ["Streams every database change to object storage with Litestream.", "Server-rendered pages with HTMX, so there is no client bundle to maintain.", "Themes are plain folders of templates, with no build step."], "arch": ["Editor", "Lumen binary", "SQLite file", "Litestream", "Object storage"], "code": ["func (s *Server) page(w http.ResponseWriter, r *http.Request) {", "\tp, err := s.db.PageBySlug(r.Context(), r.PathValue(\"slug\"))", "\tif err != nil {", "\t\thttp.NotFound(w, r)", "\t\treturn", "\t}", "\ts.tpl.ExecuteTemplate(w, \"page.html\", p)", "}"], "log": ["$ lumen serve --data=./site.db", "[ok] wal mode on", "[ok] themes: 3 loaded", "[ok] litestream: replicating", "[ok] listening on :8090 (90 ms)"], "timeline": [["2025-01", "First commit"], ["2025-04", "v1.0 and public release"], ["2025-09", "230 sites in the wild"]], "links": {"repo": "#", "demo": "#"}, "real": false}, {"id": "cinder", "name": "Cinder", "part": "CND-5057", "color": "#ff8a4d", "tag": "An offline-first habit tracker with 62,000 downloads.", "year": "2024 to 2025", "role": "Mobile developer", "status": "Live on both stores", "type": "Mobile app", "stack": ["React Native", "Expo", "SQLite", "WatermelonDB", "Reanimated", "Firebase push"], "metrics": [["Downloads", "62,000"], ["Store rating", "4.8 (3.1k)"], ["Crash-free sessions", "99.6%"], ["Cold start", "1.1 s"], ["Sync conflicts auto-resolved", "98%"], ["Languages", "7"]], "about": "A habit tracker that works on a train with no signal and syncs quietly when it can. Streaks, gentle reminders and a calm interface that stays out of the way.", "points": ["Everything is written to the local database first, then synced in the background.", "Conflicts resolve by field, so editing on two devices never loses a streak.", "Animations run on the UI thread and hold 60 frames per second."], "arch": ["App", "Local SQLite", "Sync engine", "REST API", "PostgreSQL"], "code": ["await synchronize({", "  database,", "  pullChanges: async ({ lastPulledAt }) => {", "    const res = await api.get(`/sync?since=${lastPulledAt ?? 0}`);", "    return { changes: res.changes, timestamp: res.timestamp };", "  },", "});"], "log": ["$ eas build --platform all", "[ok] ios build 2.8.0 (214)", "[ok] android build 2.8.0 (214)", "[ok] sourcemaps uploaded", "[ok] rollout: 20% of users"], "timeline": [["2024-03", "Prototype on TestFlight"], ["2024-08", "Public launch"], ["2025-03", "Passed 60,000 downloads"]], "links": {"repo": "#", "demo": "#"}, "real": false}, {"id": "sentry", "name": "Sentry Gate", "part": "SNT-7741", "color": "#6cc4ff", "tag": "A multi-tenant login service for 140 organizations.", "year": "2022", "role": "Security-minded backend developer", "status": "In production", "type": "Auth service", "stack": ["C# .NET 8", "ASP.NET Core", "OpenIddict", "PostgreSQL", "Redis", "WebAuthn"], "metrics": [["Tokens issued per day", "2.8M"], ["p99 latency", "62 ms"], ["Tenants", "140"], ["MFA adoption", "74%"], ["Attacks blocked per month", "18,300"], ["Critical pen-test findings", "0"]], "about": "One sign-in service for many organizations, with OAuth 2.0 and OpenID Connect, passkeys and per-tenant policy. It blocks the boring attacks so teams can focus on the interesting ones.", "points": ["Adaptive rate limits per tenant, per user and per address.", "Passkeys first, with TOTP and recovery codes as fallbacks.", "Every admin action lands in an append-only audit log."], "arch": ["App", "Gate", "Policy engine", "Token store", "Audit log"], "code": ["builder.Services.AddAuthorization(o =>", "  o.AddPolicy(\"TenantAdmin\", p => p", "    .RequireAuthenticatedUser()", "    .RequireClaim(\"tenant_role\", \"admin\")", "    .RequireAssertion(ctx => ctx.User.HasMfa())));"], "log": ["$ dotnet run --project Gate.Api", "[info] tenants loaded: 140", "[info] signing keys rotated (kid 2026-10)", "[info] rate limiter: sliding window", "[info] listening on :5001"], "timeline": [["2022-05", "First tenant"], ["2023-02", "Passkeys support"], ["2024-10", "Independent pen test passed"]], "links": {"repo": "#", "demo": "#"}, "real": false}, {"id": "quill", "name": "Quillsmith", "part": "QLS-2468", "color": "#ff6fd8", "tag": "A resume builder with live preview and one-click PDF.", "year": "2024", "role": "Full-stack developer", "status": "In production", "type": "SaaS app", "stack": ["Vue 3", "Pinia", "Fastify", "Puppeteer", "S3", "Stripe"], "metrics": [["Templates", "18"], ["PDFs per day", "3,100"], ["Export time", "1.3 s"], ["ATS parse pass rate", "96%"], ["Registered users", "24,000"], ["Free to paid", "6.2%"]], "about": "Type on the left, see the finished page on the right. Every template is tested against applicant tracking parsers, so the file a recruiter opens is the file a machine can read.", "points": ["Templates are plain data, so adding a layout takes an afternoon.", "PDF export runs in a pooled headless browser with fonts embedded.", "Autosave writes every few seconds and survives a closed tab."], "arch": ["Editor", "Pinia store", "Template engine", "PDF worker", "S3"], "code": ["export interface Template {", "  id: string;", "  columns: 1 | 2;", "  fonts: { heading: string; body: string };", "  sections: Array<\"summary\" | \"experience\" | \"education\" | \"skills\">;", "}"], "log": ["$ quillsmith export --id=u_8812", "[ok] template: harbor-2col", "[ok] fonts embedded: 2", "[ok] ats check: 96/100", "[ok] pdf ready in 1.3 s (84 KB)"], "timeline": [["2024-02", "Prototype with 3 templates"], ["2024-06", "Public launch"], ["2024-12", "Passed 24,000 users"]], "links": {"repo": "#", "demo": "#"}, "real": false}, {"id": "harbor", "name": "Harbor Booking", "part": "HBR-8800", "color": "#4dd0e1", "tag": "A booking and seat-hold system for small ferry operators.", "year": "2024", "role": "Full-stack developer", "status": "In production", "type": "Booking platform", "stack": ["Django", "PostgreSQL", "Celery", "Redis", "HTMX", "Stripe"], "metrics": [["Bookings per day", "1,900"], ["Seat-hold time", "10 min"], ["Double bookings", "0"], ["Peak requests", "85 per second"], ["Operators", "18"], ["Mobile share", "71%"]], "about": "A booking system for ferry operators who sell the same seats by phone, at the pier and online. Seats are held for ten minutes while a customer pays, then released automatically.", "points": ["Seat holds use row locks, so two people can never buy the same seat.", "Departures are generated from a timetable with exceptions for weather and holidays.", "Pier staff get a check-in screen that works on a cracked phone in the sun."], "arch": ["Customer", "Booking page", "Django service", "PostgreSQL", "Celery worker"], "code": ["with transaction.atomic():", "    seat = Seat.objects.select_for_update().get(pk=seat_id)", "    if seat.is_available():", "        Hold.objects.create(seat=seat, expires=now() + timedelta(minutes=10))"], "log": ["$ manage.py runserver", "[ok] timetable generated: 62 departures", "[ok] celery beat: release expired holds", "[ok] stripe webhook verified"], "timeline": [["2024-02", "Pilot with 2 operators"], ["2024-07", "Seat holds and online payment"], ["2024-11", "18 operators live"]], "links": {"repo": "#", "demo": "#"}, "real": false}];
+
+var IO = {
+  id: 'io', name: 'I/O PANEL', part: 'IO-CONTACT', real: true, color: '#6dffb0',
+  tag: 'Plug in here to start a project.', year: 'Now', role: 'Say hello', status: 'Open to projects', type: 'Contact',
+  stack: ['Email', 'Video call', 'Shared docs'],
+  metrics: [['Availability', 'Open to projects'], ['Reply time', 'Within 24 hours'], ['Best for', 'Portfolios and builds'], ['Working style', 'Remote, async friendly']],
+  about: 'Tell me about your work and what you want it to say. I will reply with questions, a rough plan and an honest estimate.',
+  points: ['A short brief is fine. A paragraph and a few links is plenty.', 'Fixed-scope builds and ongoing work both work.', 'Everything is documented so you can take it over later.'],
+  arch: ['Your brief', 'Reply in 24 h', 'Plan and estimate', 'Build', 'Handover'],
+  code: ['To: hello@example.com', 'Subject: My portfolio', '', 'My work:  links or files', 'My taste: what you like', 'Deadline: when you need it'],
+  log: ['$ ping hello@example.com', 'reply from hello@example.com: time < 24 h', '--- 1 packet sent, 1 received'],
+  timeline: [['Day 0', 'You send a brief'], ['Day 1', 'Questions and a rough plan'], ['Day 3', 'Estimate and start date']],
+  links: { email: 'hello@example.com' }
+};
+</script>
+
+<script>
+/* ===================================================================
+   ENGINE: 3D board, parts, controls, dossier, portal travel
+   =================================================================== */
+var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+var isTouch = (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || ('ontouchstart' in window);
+var root = document.documentElement;
+function $(s) { return document.querySelector(s); }
+function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+function rng(seed) { return function () { seed |= 0; seed = seed + 0x6D2B79F5 | 0; var t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function easeIO(t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
+function hex(h) { return parseInt(h.slice(1), 16); }
+function live(msg) { $('#live').textContent = msg; }
+
+/* ---------------- chip layout: core in the middle, two rings around it ---------------- */
+var PROJECTS = REAL.concat(SAMPLES);
+var NODES = [CORE];
+var PKGS = ['qfp', 'bga', 'soic', 'dip'];
+(function layout() {
+  CORE.x = 0; CORE.z = 0; CORE.w = 6.8; CORE.d = 6.8; CORE.pkg = 'cpu';
+  var i, a, n;
+  var inner = PROJECTS.slice(0, 8), outer = PROJECTS.slice(8);
+  inner.forEach(function (p, k) {
+    a = k * Math.PI / 4 - Math.PI / 2;
+    p.x = 11 * Math.cos(a); p.z = 8.2 * Math.sin(a); p.w = 4.6; p.d = 3.4; p.pkg = PKGS[k % 4]; p.ring = 1;
+    NODES.push(p);
+  });
+  /* the outer ring has 12 slots: 11 samples plus the I/O panel on the right edge (slot 2) */
+  var oi = 0;
+  for (var slot = 0; slot < 12; slot++) {
+    a = (15 + slot * 30) * Math.PI / 180 - Math.PI / 2;
+    if (slot === 2) { IO.x = 27.0; IO.z = 14.6 * Math.sin(a); IO.w = 4.0; IO.d = 3.0; IO.pkg = 'io'; IO.ring = 2; NODES.push(IO); continue; }
+    var p = outer[oi++]; if (!p) continue;
+    p.x = 23 * Math.cos(a); p.z = 14.6 * Math.sin(a); p.w = 4.8; p.d = 3.4; p.pkg = PKGS[(slot + 1) % 4]; p.ring = 2;
+    NODES.push(p);
+  }
+  for (i = 0; i < NODES.length; i++) NODES[i].index = i;
+})();
+
+/* edges: core to inner, inner to nearest outer, and chains around each ring */
+var EDGES = [];
+(function buildEdgeList() {
+  var inner = [], outer = [];
+  NODES.forEach(function (n) { if (n.ring === 1) inner.push(n.index); else if (n.ring === 2) outer.push(n.index); });
+  inner.forEach(function (i) { EDGES.push([0, i, 3]); });
+  inner.forEach(function (i, k) { EDGES.push([i, inner[(k + 1) % inner.length], 1]); });
+  outer.forEach(function (o) {
+    var best = inner[0], bd = 1e9;
+    inner.forEach(function (i) { var d = Math.hypot(NODES[o].x - NODES[i].x, NODES[o].z - NODES[i].z); if (d < bd) { bd = d; best = i; } });
+    EDGES.push([best, o, 2]);
+  });
+  outer.forEach(function (o, k) { var nx = outer[(k + 1) % outer.length]; if (o !== nx) EDGES.push([o, nx, 1]); });
+})();
+
+/* ---------------- trace routing (x, z plane, world units) ---------------- */
+var LANE = 0.16, CHAM = 0.26, TW = 0.1;
+function clean(p) {
+  var o = [p[0]], i;
+  for (i = 1; i < p.length; i++) { var q = o[o.length - 1]; if (Math.hypot(p[i][0] - q[0], p[i][1] - q[1]) > 0.01) o.push(p[i]); }
+  var r = [o[0]];
+  for (i = 1; i < o.length - 1; i++) {
+    var a = r[r.length - 1], b = o[i], c = o[i + 1];
+    var cr = (b[0] - a[0]) * (c[1] - b[1]) - (b[1] - a[1]) * (c[0] - b[0]);
+    if (Math.abs(cr) > 0.01) r.push(b);
+  }
+  r.push(o[o.length - 1]);
+  return r;
+}
+function chamfer(p, r) {
+  var out = [p[0]];
+  for (var i = 1; i < p.length - 1; i++) {
+    var a = p[i - 1], b = p[i], c = p[i + 1];
+    var l1 = Math.hypot(b[0] - a[0], b[1] - a[1]), l2 = Math.hypot(c[0] - b[0], c[1] - b[1]);
+    var rr = Math.min(r, l1 / 2 - 0.01, l2 / 2 - 0.01);
+    if (rr <= 0.02) { out.push(b); continue; }
+    out.push([b[0] - (b[0] - a[0]) / l1 * rr, b[1] - (b[1] - a[1]) / l1 * rr]);
+    out.push([b[0] + (c[0] - b[0]) / l2 * rr, b[1] + (c[1] - b[1]) / l2 * rr]);
+  }
+  out.push(p[p.length - 1]);
+  return out;
+}
+function makePoly(pts) {
+  var cum = [0], i, x0 = 1e9, z0 = 1e9, x1 = -1e9, z1 = -1e9;
+  for (i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+  for (i = 0; i < pts.length; i++) { x0 = Math.min(x0, pts[i][0]); z0 = Math.min(z0, pts[i][1]); x1 = Math.max(x1, pts[i][0]); z1 = Math.max(z1, pts[i][1]); }
+  return { pts: pts, cum: cum, len: cum[cum.length - 1], lit: new Float32Array(pts.length - 1), bb: [x0, z0, x1, z1], q0: 0 };
+}
+
+var edgeDefs = [], polys = [];
+(function buildRouting() {
+  var slots = {};
+  edgeDefs = EDGES.map(function (e, i) {
+    var A = NODES[e[0]], B = NODES[e[1]], dx = B.x - A.x, dz = B.z - A.z;
+    var horiz = Math.abs(dx) > Math.abs(dz) * 0.85, sa, sb;
+    if (horiz) { sa = dx > 0 ? 'r' : 'l'; sb = dx > 0 ? 'l' : 'r'; } else { sa = dz > 0 ? 'b' : 't'; sb = dz > 0 ? 't' : 'b'; }
+    return { a: e[0], b: e[1], n: e[2], horiz: horiz, sa: sa, sb: sb, t: 0.32 + ((i * 37) % 36) / 100, oa: 0, ob: 0, lanes: [] };
+  });
+  edgeDefs.forEach(function (d, i) {
+    [[d.a, d.sa, 'oa'], [d.b, d.sb, 'ob']].forEach(function (p) { var k = p[0] + '|' + p[1]; (slots[k] = slots[k] || []).push([i, p[2]]); });
+  });
+  Object.keys(slots).forEach(function (k) {
+    var parts = k.split('|'), node = NODES[+parts[0]], side = parts[1], list = slots[k];
+    var hs = side === 'r' || side === 'l';
+    list.sort(function (p, q) {
+      var dp = edgeDefs[p[0]], dq = edgeDefs[q[0]];
+      var op = NODES[p[1] === 'oa' ? dp.b : dp.a], oq = NODES[q[1] === 'oa' ? dq.b : dq.a];
+      return hs ? op.z - oq.z : op.x - oq.x;
+    });
+    var extent = hs ? node.d : node.w, m = list.length, sp = Math.min(0.9, (extent - 1.0) / Math.max(1, m));
+    list.forEach(function (p, j) { edgeDefs[p[0]][p[1]] = (j - (m - 1) / 2) * sp; });
+  });
+  edgeDefs.forEach(function (d) {
+    var A = NODES[d.a], B = NODES[d.b];
+    for (var l = 0; l < d.n; l++) {
+      var lo = (l - (d.n - 1) / 2) * LANE, pts;
+      if (d.horiz) {
+        var sx = A.x + (d.sa === 'r' ? A.w / 2 : -A.w / 2), ex = B.x + (d.sb === 'r' ? B.w / 2 : -B.w / 2);
+        var sz = A.z + d.oa + lo, ez = B.z + d.ob + lo, mx = sx + (ex - sx) * d.t + lo;
+        pts = [[sx, sz], [mx, sz], [mx, ez], [ex, ez]];
+      } else {
+        var sz2 = A.z + (d.sa === 'b' ? A.d / 2 : -A.d / 2), ez2 = B.z + (d.sb === 'b' ? B.d / 2 : -B.d / 2);
+        var sx2 = A.x + d.oa + lo, ex2 = B.x + d.ob + lo, mz = sz2 + (ez2 - sz2) * d.t + lo;
+        pts = [[sx2, sz2], [sx2, mz], [ex2, mz], [ex2, ez2]];
+      }
+      var poly = makePoly(chamfer(clean(pts), CHAM));
+      poly.edge = d; d.lanes.push(poly); polys.push(poly);
+    }
+  });
+})();
+
+var neighbours = NODES.map(function () { return []; });
+edgeDefs.forEach(function (d) {
+  neighbours[d.a].push({ to: d.b, d: d, rev: false });
+  neighbours[d.b].push({ to: d.a, d: d, rev: true });
+});
+function routeBetween(a, b) {
+  var dist = NODES.map(function () { return 1e12; }), prev = NODES.map(function () { return null; }), done = {};
+  dist[a] = 0;
+  for (var k = 0; k < NODES.length; k++) {
+    var u = -1, i;
+    for (i = 0; i < NODES.length; i++) if (!done[i] && (u < 0 || dist[i] < dist[u])) u = i;
+    if (u < 0 || dist[u] >= 1e12) break;
+    done[u] = true;
+    neighbours[u].forEach(function (nb) {
+      var w = nb.d.lanes[0].len;
+      if (dist[u] + w < dist[nb.to]) { dist[nb.to] = dist[u] + w; prev[nb.to] = { from: u, nb: nb }; }
+    });
+  }
+  var steps = [], cur = b;
+  while (cur !== a && prev[cur]) { steps.unshift(prev[cur].nb); cur = prev[cur].from; }
+  var pts = [], refs = [], cum = [0];
+  steps.forEach(function (nb) {
+    var poly = nb.d.lanes[0], P = poly.pts, n = P.length;
+    for (var j = 0; j < n; j++) {
+      var pt = P[nb.rev ? n - 1 - j : j];
+      if (pts.length) {
+        var lp = pts[pts.length - 1], seg = Math.hypot(pt[0] - lp[0], pt[1] - lp[1]);
+        if (seg < 0.001) continue;
+        cum.push(cum[cum.length - 1] + seg);
+        refs.push(j === 0 ? null : { poly: poly, idx: nb.rev ? n - 1 - j : j - 1 });
+      }
+      pts.push(pt);
+    }
+  });
+  return { pts: pts, cum: cum, refs: refs, len: cum[cum.length - 1] };
+}
+function pointAt(r, s) {
+  s = clamp(s, 0, r.len);
+  var i = 1;
+  while (i < r.cum.length - 1 && r.cum[i] < s) i++;
+  var a = r.pts[i - 1], b = r.pts[i], seg = r.cum[i] - r.cum[i - 1] || 1, u = (s - r.cum[i - 1]) / seg;
+  return [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u];
+}
+function polyPoint(p, s) {
+  s = clamp(s, 0, p.len);
+  var i = 1; while (i < p.cum.length - 1 && p.cum[i] < s) i++;
+  var a = p.pts[i - 1], b = p.pts[i], seg = p.cum[i] - p.cum[i - 1] || 1, u = (s - p.cum[i - 1]) / seg;
+  return [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u];
+}
+
+/* ---------------- placement of parts on free board space ---------------- */
+var R0 = rng(3030), placed = [];
+var freeRects = [], freeSegs = [];
+(function prepFree() {
+  NODES.forEach(function (n) { freeRects.push([n.x - n.w / 2 - 1.1, n.z - n.d / 2 - 1.1, n.w + 2.2, n.d + 2.2]); });
+  polys.forEach(function (p) { for (var i = 0; i < p.pts.length - 1; i++) freeSegs.push([p.pts[i][0], p.pts[i][1], p.pts[i + 1][0], p.pts[i + 1][1]]); });
+})();
+function dseg(px, pz, s) {
+  var dx = s[2] - s[0], dz = s[3] - s[1], l2 = dx * dx + dz * dz, t = l2 ? clamp(((px - s[0]) * dx + (pz - s[1]) * dz) / l2, 0, 1) : 0;
+  return Math.hypot(px - (s[0] + dx * t), pz - (s[1] + dz * t));
+}
+function isFree(x, z, w, d, gap) {
+  var g = gap == null ? 0.3 : gap, i, mx = 2.3;
+  if (x - w / 2 < -BW / 2 + mx || x + w / 2 > BW / 2 - mx || z - d / 2 < -BD / 2 + mx || z + d / 2 > BD / 2 - mx) return false;
+  for (i = 0; i < freeRects.length; i++) { var r = freeRects[i]; if (x + w / 2 + g > r[0] && x - w / 2 - g < r[0] + r[2] && z + d / 2 + g > r[1] && z - d / 2 - g < r[1] + r[3]) return false; }
+  var rad = Math.hypot(w, d) / 2 + g + TW;
+  for (i = 0; i < freeSegs.length; i++) if (dseg(x, z, freeSegs[i]) < rad) return false;
+  return true;
+}
+function findSpot(w, d, tries, gap, fixed) {
+  for (var t = 0; t < tries; t++) {
+    var x = fixed && fixed.x != null ? fixed.x : -BW / 2 + 2.5 + R0() * (BW - 5);
+    var z = fixed && fixed.z != null ? fixed.z : -BD / 2 + 2.5 + R0() * (BD - 5);
+    if (isFree(x, z, w, d, gap)) { freeRects.push([x - w / 2, z - d / 2, w, d]); return [x, z]; }
+  }
+  /* random tries failed: scan the whole board on a grid, starting from a random offset */
+  var sx = Math.floor(R0() * 8), sz = Math.floor(R0() * 8);
+  for (var gx = -BW / 2 + 2.5; gx < BW / 2 - 2.4; gx += 0.5) {
+    for (var gz = -BD / 2 + 2.5; gz < BD / 2 - 2.4; gz += 0.5) {
+      var xx = fixed && fixed.x != null ? fixed.x : gx + sx * 0.06, zz = fixed && fixed.z != null ? fixed.z : gz + sz * 0.06;
+      if (isFree(xx, zz, w, d, gap)) { freeRects.push([xx - w / 2, zz - d / 2, w, d]); return [xx, zz]; }
+    }
+  }
+  return null;
+}
+
+/* ---------------- state ---------------- */
+var glc = $('#gl'), labc = $('#lab'), lctx = labc.getContext('2d'), mini = $('#mini'), mctx = mini.getContext('2d');
+var W = window.innerWidth, H = window.innerHeight, DPR = 1;
+var renderer = null, scene = null, camera = null, raycaster = null, hasGL = false;
+var camS = { tx: 0, tz: 0, dist: 34, az: 0.35, pol: 0.95 };
+var camAnim = null, inertia = { x: 0, z: 0 }, routeState = null;
+var cur = 0, hoverNode = -1, hoverPart = null, ptrScreen = null, ptrActive = false, dragging = false;
+var chips = [], parts = [], pickables = [], traceMesh = null, traceGeom = null, anyLitPrev = true;
+var instMeshes = {}, popList = [], sparks = null, ambient = null, ambientData = [], pulseObj = null;
+var tmpV = new Array(3);
+
+function initRenderer() {
+  if (!window.THREE) return false;
+  try {
+    renderer = new THREE.WebGLRenderer({ canvas: glc, antialias: true, alpha: false, powerPreference: 'high-performance' });
+    if (renderer.getContext && !renderer.getContext()) return false;
+  } catch (e) { return false; }
+  return true;
+}
+
+function resize() {
+  W = window.innerWidth; H = window.innerHeight;
+  DPR = Math.min(window.devicePixelRatio || 1, isTouch ? 1.75 : 2);
+  labc.width = Math.round(W * DPR); labc.height = Math.round(H * DPR);
+  mini.width = Math.round(120 * DPR); mini.height = Math.round(80 * DPR);
+  if (hasGL) {
+    renderer.setPixelRatio(DPR);
+    renderer.setSize(W, H, false);
+    camera.aspect = W / H; camera.updateProjectionMatrix();
+  }
+}
+
+/* ---------------- materials, textures and geometry helpers ---------------- */
+var M = null;
+var wires = [], silk = [], partTags = { fan: 0, dimm: 0, hs: 0, port: 0, led: 0, dip: 0, btn: 0, pot: 0, bz: 0, xtal: 0, scr: 0, pcie: 0, atx: 0, sata: 0, bat: 0 };
+
+function mt(x, y, z, sx, sy, sz, ry) {
+  var m = new THREE.Matrix4(), q = new THREE.Quaternion();
+  q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), ry || 0);
+  m.compose(new THREE.Vector3(x || 0, y || 0, z || 0), q, new THREE.Vector3(sx == null ? 1 : sx, sy == null ? 1 : sy, sz == null ? 1 : sz));
+  return m;
+}
+function roundedBoxGeo(w, h, d, r, seg) {
+  seg = seg || 4;
+  var g = new THREE.BoxGeometry(w, h, d, seg, seg, seg), pos = g.attributes.position;
+  var v = new THREE.Vector3(), inner = new THREE.Vector3(), n = new THREE.Vector3();
+  var hx = Math.max(0.001, w / 2 - r), hy = Math.max(0.001, h / 2 - r), hz = Math.max(0.001, d / 2 - r);
+  for (var i = 0; i < pos.count; i++) {
+    v.fromBufferAttribute(pos, i);
+    inner.set(clamp(v.x, -hx, hx), clamp(v.y, -hy, hy), clamp(v.z, -hz, hz));
+    n.subVectors(v, inner);
+    if (n.lengthSq() > 1e-9) { n.normalize(); v.copy(inner).addScaledVector(n, r); }
+    pos.setXYZ(i, v.x, v.y, v.z);
+  }
+  g.computeVertexNormals();
+  return g;
+}
+function mergeGeos(items) {
+  var pos = [], nor = [], col = [];
+  items.forEach(function (it) {
+    var g = it.g.index ? it.g.toNonIndexed() : it.g.clone();
+    if (it.m) g.applyMatrix4(it.m);
+    var p = g.attributes.position.array, n = g.attributes.normal.array, i;
+    for (i = 0; i < p.length; i++) { pos.push(p[i]); nor.push(n[i]); }
+    for (i = 0; i < p.length / 3; i++) col.push(it.c[0], it.c[1], it.c[2]);
+  });
+  var out = new THREE.BufferGeometry();
+  out.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  out.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+  out.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  return out;
+}
+function canvasTex(w, h, fn) {
+  var c = document.createElement('canvas'); c.width = w; c.height = h;
+  var g = c.getContext('2d'); fn(g, w, h);
+  var t = new THREE.CanvasTexture(c);
+  if (renderer && renderer.capabilities && renderer.capabilities.getMaxAnisotropy) t.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+  return t;
+}
+function makeMaterials() {
+  var S = THREE.MeshStandardMaterial;
+  M = {
+    epoxy: new S({ color: 0x15171c, roughness: 0.74, metalness: 0.0, envMapIntensity: 0.3 }),
+    plastic: new S({ color: 0x0f1115, roughness: 0.5, metalness: 0.0, envMapIntensity: 0.5 }),
+    grey: new S({ color: 0x3a3f48, roughness: 0.55, metalness: 0.1, envMapIntensity: 0.5 }),
+    ivory: new S({ color: 0xd9d4c2, roughness: 0.6, metalness: 0.0, envMapIntensity: 0.4 }),
+    pin: new S({ color: 0xc9cdd3, roughness: 0.28, metalness: 1.0, envMapIntensity: 1.2 }),
+    gold: new S({ color: 0xd9b24c, roughness: 0.26, metalness: 1.0, envMapIntensity: 1.2 }),
+    alu: new S({ color: 0xb8bfc9, roughness: 0.34, metalness: 1.0, envMapIntensity: 1.2 }),
+    steel: new S({ color: 0x8e96a3, roughness: 0.4, metalness: 1.0, envMapIntensity: 1.1 }),
+    pcbDark: new S({ color: 0x0b4a24, roughness: 0.5, metalness: 0.05, envMapIntensity: 0.3 }),
+    blue: new S({ color: 0x1d4fb0, roughness: 0.45, metalness: 0.05, envMapIntensity: 0.4 }),
+    white: new S({ color: 0xe9eef0, roughness: 0.5, metalness: 0.0, envMapIntensity: 0.4 }),
+    vcol: new S({ vertexColors: true, roughness: 0.5, metalness: 0.5, envMapIntensity: 0.9 })
+  };
+}
+function makeEnv() {
+  try {
+    var c = document.createElement('canvas'); c.width = 512; c.height = 256;
+    var g = c.getContext('2d');
+    var gr = g.createLinearGradient(0, 0, 0, 256);
+    gr.addColorStop(0, '#dfe9e4'); gr.addColorStop(0.5, '#7f9088'); gr.addColorStop(1, '#16221c');
+    g.fillStyle = gr; g.fillRect(0, 0, 512, 256);
+    g.fillStyle = 'rgba(255,255,255,0.95)';
+    g.fillRect(60, 40, 120, 26); g.fillRect(260, 30, 90, 20); g.fillRect(400, 52, 70, 18);
+    var tex = new THREE.CanvasTexture(c);
+    tex.mapping = THREE.EquirectangularReflectionMapping;
+    var pm = new THREE.PMREMGenerator(renderer);
+    var rt = pm.fromEquirectangular(tex);
+    scene.environment = rt.texture;
+    pm.dispose(); tex.dispose();
+  } catch (e) { /* the board still renders without reflections */ }
+}
+function wrapText(g, text, maxW) {
+  var words = text.split(' '), lines = [], line = '';
+  words.forEach(function (w) { var t = line ? line + ' ' + w : w; if (g.measureText(t).width > maxW && line) { lines.push(line); line = w; } else line = t; });
+  if (line) lines.push(line);
+  return lines;
+}
+function chipTexture(n) {
+  var s = 120, cw = Math.max(64, Math.round(n.w * s)), ch = Math.max(64, Math.round(n.d * s));
+  return canvasTex(cw, ch, function (g) {
+    var gr = g.createLinearGradient(0, 0, cw, ch); gr.addColorStop(0, '#1d2128'); gr.addColorStop(1, '#101318');
+    g.fillStyle = gr; g.fillRect(0, 0, cw, ch);
+    for (var i = 0; i < 260; i++) { g.fillStyle = 'rgba(255,255,255,' + (0.015 + (i % 4) * 0.008) + ')'; g.fillRect((i * 97) % cw, (i * 53) % ch, 2, 2); }
+    g.strokeStyle = 'rgba(255,255,255,0.10)'; g.lineWidth = 2; g.strokeRect(8, 8, cw - 16, ch - 16);
+    g.fillStyle = 'rgba(255,255,255,0.55)'; g.beginPath(); g.arc(26, 26, 7, 0, 6.2832); g.fill();
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    var name = n.name.toUpperCase(), fs = 36;
+    g.font = '700 ' + fs + 'px ui-monospace, Menlo, Consolas, monospace';
+    var lines = wrapText(g, name, cw - 80);
+    while (lines.length > 2 || (lines.length && g.measureText(lines.reduce(function (a, b) { return a.length > b.length ? a : b; }, '')).width > cw - 64)) {
+      fs -= 3; g.font = '700 ' + fs + 'px ui-monospace, Menlo, Consolas, monospace'; lines = wrapText(g, name, cw - 80); if (fs < 18) break;
+    }
+    var y0 = ch / 2 - (lines.length - 1) * fs * 0.55 - 8;
+    g.fillStyle = 'rgba(226,236,246,0.9)';
+    lines.forEach(function (l, i) { g.fillText(l, cw / 2, y0 + i * fs * 1.1); });
+    g.font = '500 19px ui-monospace, Menlo, Consolas, monospace'; g.fillStyle = 'rgba(170,196,224,0.55)';
+    g.fillText(n.part, cw / 2, ch - 52);
+    g.font = '700 16px ui-monospace, Menlo, Consolas, monospace';
+    g.fillStyle = n.real ? 'rgba(109,255,176,0.85)' : 'rgba(232,194,90,0.9)';
+    g.fillText(n.real ? (n.id === 'core' ? 'ABOUT' : n.id === 'io' ? 'CONTACT' : 'REAL') : 'SAMPLE', cw / 2, ch - 26);
+  });
+}
+function ihsTexture() {
+  return canvasTex(512, 512, function (g) {
+    var gr = g.createLinearGradient(0, 0, 512, 512);
+    gr.addColorStop(0, '#c4cad4'); gr.addColorStop(0.45, '#8f98a6'); gr.addColorStop(1, '#b4bcc8');
+    g.fillStyle = gr; g.fillRect(0, 0, 512, 512);
+    for (var i = 0; i < 200; i++) { g.fillStyle = 'rgba(' + (i % 2 ? '255,255,255' : '50,60,80') + ',' + (0.03 + (i % 5) * 0.01) + ')'; g.fillRect(0, i * 2.6, 512, 1); }
+    g.strokeStyle = 'rgba(40,50,70,0.55)'; g.lineWidth = 4; g.strokeRect(30, 30, 452, 452);
+    g.fillStyle = 'rgba(30,38,56,0.85)'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.font = '700 84px ui-monospace, Menlo, Consolas, monospace'; g.fillText('CORE', 256, 220);
+    g.font = '500 30px ui-monospace, Menlo, Consolas, monospace'; g.fillText('YOUR NAME', 256, 296);
+    g.font = '500 22px ui-monospace, Menlo, Consolas, monospace'; g.fillText('CPU-0001  /  PORTFOLIO', 256, 352);
+    g.fillStyle = 'rgba(30,38,56,0.8)'; g.beginPath(); g.moveTo(40, 40); g.lineTo(90, 40); g.lineTo(40, 90); g.fill();
+  });
+}
+function capTopTex() {
+  return canvasTex(128, 128, function (g) {
+    var gr = g.createRadialGradient(54, 50, 6, 64, 64, 64); gr.addColorStop(0, '#f0f3f6'); gr.addColorStop(1, '#8b95a3');
+    g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+    g.strokeStyle = '#4e5662'; g.lineWidth = 3;
+    g.beginPath(); g.arc(64, 64, 52, 0, 6.2832); g.stroke();
+    g.beginPath(); g.moveTo(40, 40); g.lineTo(88, 88); g.moveTo(88, 40); g.lineTo(40, 88); g.stroke();
+  });
+}
+function capSideTex(color) {
+  return canvasTex(256, 128, function (g, w, h) {
+    g.fillStyle = color; g.fillRect(0, 0, w, h);
+    g.fillStyle = '#e8edf2'; g.fillRect(0, 0, 46, h);
+    g.fillStyle = color; g.font = '700 34px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    for (var i = 0; i < 3; i++) g.fillText('-', 23, 24 + i * 38);
+    g.fillStyle = 'rgba(230,236,244,0.8)'; g.font = '600 20px ui-monospace, monospace'; g.fillText('470uF 16V', 150, 64);
+  });
+}
+function fanStickerTex() {
+  return canvasTex(128, 128, function (g) {
+    g.fillStyle = '#1a1d23'; g.fillRect(0, 0, 128, 128);
+    g.strokeStyle = '#9fb4c8'; g.lineWidth = 4; g.beginPath(); g.arc(64, 64, 46, 0, 6.2832); g.stroke();
+    g.fillStyle = '#9fb4c8'; g.font = '700 22px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('FAN', 64, 58); g.font = '500 12px sans-serif'; g.fillText('12V DC', 64, 78);
+  });
+}
+function batteryTex() {
+  return canvasTex(256, 256, function (g) {
+    var gr = g.createRadialGradient(100, 90, 10, 128, 128, 128); gr.addColorStop(0, '#eceff3'); gr.addColorStop(1, '#9aa3af');
+    g.fillStyle = gr; g.fillRect(0, 0, 256, 256);
+    g.strokeStyle = 'rgba(60,70,90,0.5)'; g.lineWidth = 3; g.beginPath(); g.arc(128, 128, 100, 0, 6.2832); g.stroke();
+    g.fillStyle = 'rgba(40,50,70,0.85)'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.font = '700 40px sans-serif'; g.fillText('CR2032', 128, 104); g.font = '600 30px sans-serif'; g.fillText('3V', 128, 146); g.font = '700 38px sans-serif'; g.fillText('+', 128, 198);
+  });
+}
+function buzzerTex() {
+  return canvasTex(128, 128, function (g) {
+    g.fillStyle = '#0c0d10'; g.fillRect(0, 0, 128, 128);
+    g.fillStyle = '#c9ced6'; g.beginPath(); g.arc(64, 64, 44, 0, 6.2832); g.fill();
+    g.fillStyle = '#0c0d10'; g.beginPath(); g.arc(64, 64, 30, 0, 6.2832); g.fill();
+    g.fillStyle = '#c9ced6'; g.font = '700 26px sans-serif'; g.textAlign = 'center'; g.fillText('+', 22, 36);
+  });
+}
+var blobTex = null;
+function blobShadow(x, z, w, d, a) {
+  if (!blobTex) blobTex = canvasTex(128, 128, function (g) { var gr = g.createRadialGradient(64, 64, 8, 64, 64, 64); gr.addColorStop(0, 'rgba(0,0,0,0.65)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); });
+  var m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshBasicMaterial({ map: blobTex, transparent: true, depthWrite: false, opacity: a == null ? 0.6 : a }));
+  m.rotation.x = -Math.PI / 2; m.position.set(x, 0.01, z); scene.add(m);
+}
+
+/* ---------------- board: painted solder mask, painted wiring, silkscreen ---------------- */
+function nearestChip(x, z) {
+  var best = null, bd = 1e9;
+  NODES.forEach(function (n) {
+    var cx = clamp(x, n.x - n.w / 2, n.x + n.w / 2), cz = clamp(z, n.z - n.d / 2, n.z + n.d / 2), d = Math.hypot(x - cx, z - cz);
+    if (d < bd) { bd = d; best = [cx, cz, d]; }
+  });
+  return best;
+}
+function addWire(x, z) {
+  var b = nearestChip(x, z);
+  if (!b || b[2] > 8 || b[2] < 0.4) return;
+  var dx = b[0] - x, dz = b[1] - z;
+  var pts = Math.abs(dx) > Math.abs(dz) ? [[x, z], [b[0], z], [b[0], b[1]]] : [[x, z], [x, b[1]], [b[0], b[1]]];
+  wires.push(chamfer(clean(pts), 0.22));
+}
+function boardTexture() {
+  var cw = isTouch ? 2048 : 2560, ch = Math.round(cw * BD / BW), px = cw / BW;
+  return canvasTex(cw, ch, function (g) {
+    function X(x) { return (x + BW / 2) * px; } function Z(z) { return (z + BD / 2) * px; }
+    var gr = g.createRadialGradient(cw / 2, ch / 2, 100, cw / 2, ch / 2, cw * 0.62);
+    gr.addColorStop(0, '#167c3e'); gr.addColorStop(1, '#0e6030');
+    g.fillStyle = gr; g.fillRect(0, 0, cw, ch);
+    var r = rng(9), i;
+    for (i = 0; i < 9000; i++) { g.fillStyle = 'rgba(' + (r() > 0.5 ? '255,255,255' : '0,28,10') + ',0.03)'; g.fillRect(r() * cw, r() * ch, 1 + r() * 4, 1 + r() * 4); }
+    g.strokeStyle = 'rgba(150,230,170,0.05)'; g.lineWidth = 1;
+    for (i = -ch; i < cw; i += 14) { g.beginPath(); g.moveTo(i, 0); g.lineTo(i + ch, ch); g.stroke(); }
+    g.lineJoin = 'round'; g.lineCap = 'round';
+    /* fine wiring that links the small parts to the chips */
+    wires.forEach(function (w) {
+      g.beginPath(); w.forEach(function (p, k) { if (k) g.lineTo(X(p[0]), Z(p[1])); else g.moveTo(X(p[0]), Z(p[1])); });
+      g.strokeStyle = 'rgba(6,56,26,0.7)'; g.lineWidth = 0.1 * px; g.stroke();
+      g.strokeStyle = 'rgba(206,176,96,0.62)'; g.lineWidth = 0.05 * px; g.stroke();
+      g.fillStyle = 'rgba(214,184,100,0.8)'; g.beginPath(); g.arc(X(w[0][0]), Z(w[0][1]), 0.09 * px, 0, 6.2832); g.fill();
+    });
+    /* main buses: soldermask relief under the raised copper */
+    polys.forEach(function (p) {
+      g.beginPath(); p.pts.forEach(function (q, k) { if (k) g.lineTo(X(q[0]), Z(q[1])); else g.moveTo(X(q[0]), Z(q[1])); });
+      g.strokeStyle = 'rgba(5,52,24,0.75)'; g.lineWidth = (TW + 0.1) * px; g.stroke();
+      g.strokeStyle = 'rgba(46,150,84,0.7)'; g.lineWidth = (TW + 0.03) * px; g.stroke();
+    });
+    /* silkscreen */
+    g.fillStyle = 'rgba(236,255,240,0.6)'; g.strokeStyle = 'rgba(236,255,240,0.5)';
+    g.lineWidth = 3; g.strokeRect(40, 40, cw - 80, ch - 80);
+    g.lineWidth = 1.5; g.strokeRect(54, 54, cw - 108, ch - 108);
+    [[110, 110], [cw - 110, 110], [110, ch - 110], [cw - 110, ch - 110]].forEach(function (p) {
+      g.lineWidth = 2; g.beginPath(); g.arc(p[0], p[1], 30, 0, 6.2832); g.moveTo(p[0] - 46, p[1]); g.lineTo(p[0] + 46, p[1]); g.moveTo(p[0], p[1] - 46); g.lineTo(p[0], p[1] + 46); g.stroke();
+    });
+    g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+    g.font = '700 ' + Math.round(px * 1.5) + 'px ui-monospace, Menlo, Consolas, monospace'; g.fillText('CIRCUIT CITY', X(-BW / 2 + 3.6), Z(BD / 2 - 2.7));
+    g.font = '500 ' + Math.round(px * 0.55) + 'px ui-monospace, Menlo, Consolas, monospace'; g.fillText('BOARD REV 3.0  /  SAMPLE PORTFOLIO PLATFORM', X(-BW / 2 + 3.7), Z(BD / 2 - 1.9));
+    g.font = '600 ' + Math.round(px * 0.42) + 'px ui-monospace, Menlo, Consolas, monospace'; g.fillStyle = 'rgba(236,255,240,0.5)';
+    NODES.forEach(function (n, i) { g.fillText('U' + (i + 1), X(n.x - n.w / 2), Z(n.z - n.d / 2 - 0.55)); });
+    silk.forEach(function (s) { g.fillText(s.t, X(s.x), Z(s.z)); });
+  });
+}
+function buildBoardTop() {
+  var top = new THREE.Mesh(new THREE.PlaneGeometry(BW, BD), new THREE.MeshStandardMaterial({ map: boardTexture(), roughness: 0.46, metalness: 0.06, envMapIntensity: 0.3 }));
+  top.rotation.x = -Math.PI / 2; top.position.y = 0.003; top.receiveShadow = true; scene.add(top);
+  var base = new THREE.Mesh(new THREE.BoxGeometry(BW, 0.5, BD), new THREE.MeshStandardMaterial({ color: 0x07391c, roughness: 0.7, envMapIntensity: 0.2 }));
+  base.position.y = -0.25; base.receiveShadow = true; scene.add(base);
+}
+
+/* ---------------- raised copper traces (they light up and carry the pulses) ---------------- */
+var GOLD = [0.66, 0.52, 0.22], HOT = [0.86, 1.0, 0.88];
+function buildTraces() {
+  var segs = 0, s;
+  polys.forEach(function (p) { p.q0 = segs; segs += p.pts.length - 1; });
+  var pos = new Float32Array(segs * 12), col = new Float32Array(segs * 12), idx = [];
+  var hw = TW / 2, y = 0.03, q = 0;
+  polys.forEach(function (p) {
+    for (s = 0; s < p.pts.length - 1; s++) {
+      var a = p.pts[s], b = p.pts[s + 1], dx = b[0] - a[0], dz = b[1] - a[1], l = Math.hypot(dx, dz) || 1;
+      dx /= l; dz /= l;
+      var ax = a[0] - dx * hw, az = a[1] - dz * hw, bx = b[0] + dx * hw, bz = b[1] + dz * hw, nx = -dz * hw, nz = dx * hw;
+      pos.set([ax + nx, y, az + nz, ax - nx, y, az - nz, bx - nx, y, bz - nz, bx + nx, y, bz + nz], q * 12);
+      var v = q * 4; idx.push(v, v + 1, v + 2, v, v + 2, v + 3);
+      q++;
+    }
+  });
+  traceGeom = new THREE.BufferGeometry();
+  traceGeom.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  traceGeom.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  traceGeom.setIndex(idx);
+  /* DoubleSide: the quads face downward from above, so a single-sided material would hide the traces */
+  traceMesh = new THREE.Mesh(traceGeom, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));
+  scene.add(traceMesh);
+  updateTraceColors(true);
+}
+function updateTraceColors(force) {
+  var any = false, col = traceGeom.attributes.color.array, k, s;
+  polys.forEach(function (p) { for (s = 0; s < p.lit.length; s++) if (p.lit[s] > 0.001) any = true; });
+  if (!any && !anyLitPrev && !force) return;
+  anyLitPrev = any;
+  polys.forEach(function (p) {
+    for (s = 0; s < p.lit.length; s++) {
+      var L = p.lit[s], o = (p.q0 + s) * 12;
+      var r = GOLD[0] + (HOT[0] - GOLD[0]) * L, g = GOLD[1] + (HOT[1] - GOLD[1]) * L, b = GOLD[2] + (HOT[2] - GOLD[2]) * L;
+      for (k = 0; k < 4; k++) { col[o + k * 3] = r; col[o + k * 3 + 1] = g; col[o + k * 3 + 2] = b; }
+    }
+  });
+  traceGeom.attributes.color.needsUpdate = true;
+}
+function addPick(mesh, info) { mesh.userData.pick = info; pickables.push(mesh); }
+
+/* ---------------- chips ---------------- */
+var gullGeo = null;
+function gullWing() {
+  if (gullGeo) return gullGeo;
+  var C = [0.8, 0.82, 0.86], B = function (w, h, d) { return new THREE.BoxGeometry(w, h, d); };
+  var bend = B(0.04, 0.2, 0.12);
+  gullGeo = mergeGeos([
+    { g: B(0.14, 0.04, 0.12), m: mt(0.07, 0.21, 0), c: C },
+    { g: bend, m: mt(0.15, 0.12, 0), c: C },
+    { g: B(0.16, 0.04, 0.12), m: mt(0.22, 0.03, 0), c: C }
+  ]);
+  return gullGeo;
+}
+function buildChip(n) {
+  var g = new THREE.Group(); g.position.set(n.x, 0, n.z);
+  var h, body, i, p, m4 = new THREE.Matrix4(), accent = hex(n.color);
+  blobShadow(n.x, n.z, n.w * 1.5, n.d * 1.5, 0.55);
+  if (n.pkg === 'cpu') {
+    h = 0.55;
+    var sock = new THREE.Mesh(roundedBoxGeo(n.w + 1.3, 0.24, n.d + 1.3, 0.1), M.grey); sock.position.y = 0.12; sock.castShadow = true; sock.receiveShadow = true; g.add(sock);
+    var pads = new THREE.Mesh(new THREE.BoxGeometry(n.w + 0.3, 0.02, n.d + 0.3), M.gold); pads.position.y = 0.245; g.add(pads);
+    var ihsMat = new THREE.MeshStandardMaterial({ map: ihsTexture(), roughness: 0.32, metalness: 0.9, envMapIntensity: 1.1 });
+    body = new THREE.Mesh(roundedBoxGeo(n.w - 0.2, h, n.d - 0.2, 0.14), [M.steel, M.steel, ihsMat, M.steel, M.steel, M.steel]);
+    body.position.y = 0.26 + h / 2; body.castShadow = true; g.add(body); h += 0.26;
+    var lp = new THREE.Mesh(roundedBoxGeo(0.28, 0.12, n.d + 1.0, 0.04), M.steel); lp.position.set(-(n.w / 2 + 0.55), 0.3, 0); g.add(lp);
+    var lever = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, n.d + 0.6, 10), M.pin); lever.rotation.x = Math.PI / 2; lever.position.set(n.w / 2 + 0.52, 0.34, 0); g.add(lever);
+    var tab = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.9, 10), M.pin); tab.rotation.z = Math.PI / 2; tab.position.set(n.w / 2 + 0.95, 0.34, n.d / 2 + 0.3); g.add(tab);
+  } else if (n.pkg === 'io') {
+    h = 1.15;
+    var ioMat = new THREE.MeshStandardMaterial({ map: ihsTexture(), roughness: 0.35, metalness: 0.9, envMapIntensity: 1.1 });
+    ioMat.map = chipTexture(n);
+    body = new THREE.Mesh(roundedBoxGeo(n.w, h, n.d, 0.08), [M.steel, M.steel, ioMat, M.steel, M.steel, M.steel]);
+    body.position.y = h / 2; body.castShadow = true; g.add(body);
+    for (i = 0; i < 3; i++) {
+      var ox = -n.w / 3 + i * (n.w / 3);
+      g.add((function () { var o = new THREE.Mesh(new THREE.BoxGeometry(n.w / 3 - 0.55, h * 0.55, 0.06), M.plastic); o.position.set(ox, h * 0.5, n.d / 2 + 0.02); return o; })());
+      var tg = new THREE.Mesh(new THREE.BoxGeometry(n.w / 3 - 0.9, 0.12, 0.7), i === 0 ? M.blue : M.white); tg.position.set(ox, h * 0.5, n.d / 2 - 0.2); g.add(tg);
+    }
+  } else {
+    var tex = chipTexture(n);
+    var topMat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.6, metalness: 0.0, envMapIntensity: 0.35 });
+    var thin = n.pkg === 'soic';
+    h = thin ? 0.42 : n.pkg === 'dip' ? 0.6 : 0.5;
+    var baseY = n.pkg === 'dip' ? 0.3 : 0.08;
+    if (n.pkg === 'dip') {
+      var sk = new THREE.Mesh(roundedBoxGeo(n.w + 0.3, 0.3, n.d + 0.3, 0.06), M.grey); sk.position.y = 0.15; sk.castShadow = true; g.add(sk);
+    }
+    body = new THREE.Mesh(roundedBoxGeo(n.w, h, n.d, 0.1), [M.epoxy, M.epoxy, topMat, M.epoxy, M.epoxy, M.epoxy]);
+    body.position.y = baseY + h / 2; body.castShadow = true; body.receiveShadow = true; g.add(body);
+    var spots = [], pitch = n.pkg === 'qfp' ? 0.42 : n.pkg === 'soic' ? 0.5 : 0.7;
+    if (n.pkg === 'qfp' || n.pkg === 'bga') {
+      for (p = -n.w / 2 + 0.5; p <= n.w / 2 - 0.45; p += pitch) { spots.push([p, -n.d / 2, -Math.PI / 2]); spots.push([p, n.d / 2, Math.PI / 2]); }
+      for (p = -n.d / 2 + 0.5; p <= n.d / 2 - 0.45; p += pitch) { spots.push([-n.w / 2, p, Math.PI]); spots.push([n.w / 2, p, 0]); }
+    } else {
+      for (p = -n.d / 2 + 0.45; p <= n.d / 2 - 0.4; p += pitch) { spots.push([-n.w / 2, p, Math.PI]); spots.push([n.w / 2, p, 0]); }
+    }
+    if (n.pkg === 'dip') {
+      var legs = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.05, 0.05, 0.3, 6), M.pin, spots.length);
+      spots.forEach(function (sp, k) { m4.makeTranslation(sp[0] + (sp[2] ? -0.12 : 0.12), 0.15, sp[1]); legs.setMatrixAt(k, m4); });
+      legs.instanceMatrix.needsUpdate = true; g.add(legs);
+      var shelf = new THREE.InstancedMesh(new THREE.BoxGeometry(0.22, 0.04, 0.14), M.pin, spots.length);
+      spots.forEach(function (sp, k) { m4.makeTranslation(sp[0] + (sp[2] ? -0.12 : 0.12), baseY + 0.16, sp[1]); shelf.setMatrixAt(k, m4); });
+      shelf.instanceMatrix.needsUpdate = true; g.add(shelf);
+    } else {
+      var pins = new THREE.InstancedMesh(gullWing(), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.3, metalness: 1.0, envMapIntensity: 1.2 }), spots.length);
+      spots.forEach(function (sp, k) { m4.copy(mt(sp[0], 0, sp[1], 1, 1, 1, -sp[2])); pins.setMatrixAt(k, m4); });
+      pins.instanceMatrix.needsUpdate = true; g.add(pins);
+    }
+    if (n.pkg === 'bga') {
+      var balls = [];
+      for (p = -n.w / 2 + 0.3; p <= n.w / 2 - 0.25; p += 0.26) { balls.push([p, -n.d / 2 + 0.12]); balls.push([p, n.d / 2 - 0.12]); }
+      for (p = -n.d / 2 + 0.5; p <= n.d / 2 - 0.45; p += 0.26) { balls.push([-n.w / 2 + 0.12, p]); balls.push([n.w / 2 - 0.12, p]); }
+      var bm = new THREE.InstancedMesh(new THREE.SphereGeometry(0.07, 6, 5), M.pin, balls.length);
+      balls.forEach(function (b, k) { m4.makeTranslation(b[0], 0.05, b[1]); bm.setMatrixAt(k, m4); });
+      bm.instanceMatrix.needsUpdate = true; g.add(bm);
+    }
+    h = baseY + h;
+  }
+  addPick(body, { type: 'chip', idx: n.index });
+  /* status LED on the board beside each chip */
+  var lens = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.1, 0.12), new THREE.MeshBasicMaterial({ color: accent }));
+  var lbody = new THREE.Mesh(roundedBoxGeo(0.4, 0.12, 0.24, 0.03), M.white);
+  lbody.position.set(n.w / 2 + 0.35, 0.07, -n.d / 2 - 0.3); lens.position.set(n.w / 2 + 0.35, 0.15, -n.d / 2 - 0.3); g.add(lbody); g.add(lens);
+  var outline = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(n.w + 0.8, h + 0.5, n.d + 0.8)), new THREE.LineBasicMaterial({ color: accent }));
+  outline.position.y = (h + 0.5) / 2 - 0.1; outline.visible = false; g.add(outline);
+  scene.add(g);
+  n.top = h;
+  return { group: g, body: body, led: lens, outline: outline, node: n, spring: 0 };
+}
+
+/* ---------------- playful parts ---------------- */
+function regPart(p, x, z, rotY) {
+  p.group.position.set(x, 0, z);
+  if (rotY) p.group.rotation.y = rotY;
+  p.group.traverse(function (m) { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } });
+  p.picks.forEach(function (m) { addPick(m, { type: 'part', part: p, sub: m.userData.sub }); });
+  scene.add(p.group);
+  parts.push(p);
+  var tag = p.tag; partTags[tag] = (partTags[tag] || 0) + 1;
+  silk.push({ x: x - 0.6, z: z + 1.2 + (p.tagDz || 0), t: tag.toUpperCase() + partTags[tag] });
+  blobShadow(x, z, (p.foot || 3) * 1.25, (p.foot || 3) * 1.25, 0.4);
+  addWire(x, z);
+  return p;
+}
+function mk(geo, mat, x, y, z) { var m = new THREE.Mesh(geo, mat); m.position.set(x || 0, y || 0, z || 0); return m; }
+function mkFan() {
+  var g = new THREE.Group(), rotor = new THREE.Group(), picks = [], a = 1.8, r = 0.4;
+  var s = new THREE.Shape();
+  s.moveTo(-a + r, -a); s.lineTo(a - r, -a); s.quadraticCurveTo(a, -a, a, -a + r); s.lineTo(a, a - r); s.quadraticCurveTo(a, a, a - r, a); s.lineTo(-a + r, a); s.quadraticCurveTo(-a, a, -a, a - r); s.lineTo(-a, -a + r); s.quadraticCurveTo(-a, -a, -a + r, -a);
+  var hole = new THREE.Path(); hole.absarc(0, 0, 1.62, 0, Math.PI * 2, true); s.holes.push(hole);
+  var fg = new THREE.ExtrudeGeometry(s, { depth: 0.55, bevelEnabled: false, curveSegments: 20 }); fg.rotateX(-Math.PI / 2);
+  var frame = new THREE.Mesh(fg, M.plastic); g.add(frame); picks.push(frame);
+  [[-1, -1], [1, -1], [1, 1], [-1, 1]].forEach(function (c) { var sc = mk(new THREE.CylinderGeometry(0.16, 0.16, 0.04, 10), M.steel, c[0] * 1.45, 0.56, c[1] * 1.45); g.add(sc); });
+  rotor.position.y = 0.3;
+  var hub = mk(new THREE.CylinderGeometry(0.62, 0.66, 0.3, 24), M.plastic, 0, 0.1, 0); rotor.add(hub); picks.push(hub);
+  var stick = mk(new THREE.CircleGeometry(0.46, 24), new THREE.MeshStandardMaterial({ map: fanStickerTex(), roughness: 0.5 }), 0, 0.26, 0); stick.rotation.x = -Math.PI / 2; rotor.add(stick);
+  var bs = new THREE.Shape(); bs.moveTo(0.5, -0.14); bs.bezierCurveTo(0.8, 0.5, 1.25, 0.62, 1.58, 0.2); bs.bezierCurveTo(1.6, -0.04, 1.05, -0.3, 0.5, -0.14);
+  var bg = new THREE.ExtrudeGeometry(bs, { depth: 0.04, bevelEnabled: false, curveSegments: 10 }); bg.rotateX(-Math.PI / 2);
+  var bm = new THREE.MeshStandardMaterial({ color: 0x1a1d24, roughness: 0.45, metalness: 0.1, envMapIntensity: 0.6 });
+  for (var i = 0; i < 9; i++) {
+    var arm = new THREE.Group(); arm.rotation.y = i * Math.PI * 2 / 9;
+    var bl = new THREE.Mesh(bg, bm); bl.position.y = 0.1; bl.rotation.x = 0.45; arm.add(bl); picks.push(bl); rotor.add(arm);
+  }
+  g.add(rotor);
+  var p = { tag: 'fan', foot: 3.9, label: 'Cooling fan: tap to spin it up', group: g, picks: picks, speed: reduce ? 0 : 1.6, base: reduce ? 0 : 1.6,
+    tap: function () { p.speed = reduce ? 6 : 28; Snd.play('spin'); },
+    update: function (dt) { rotor.rotation.y += p.speed * dt; p.speed += (p.base - p.speed) * (1 - Math.exp(-dt * 0.7)); } };
+  return p;
+}
+function mkDip() {
+  var g = new THREE.Group(), picks = [], sliders = [], ons = [false, false, false, false];
+  var body = mk(roundedBoxGeo(2.4, 0.5, 1.1, 0.06), M.blue, 0, 0.25, 0); g.add(body); picks.push(body);
+  g.add(mk(new THREE.BoxGeometry(2.1, 0.02, 0.1), M.white, 0, 0.51, -0.42));
+  var legs = new THREE.InstancedMesh(new THREE.BoxGeometry(0.1, 0.05, 0.22), M.pin, 8), m4 = new THREE.Matrix4();
+  for (var i = 0; i < 4; i++) { m4.makeTranslation(-0.75 + i * 0.5, 0.06, 0.66); legs.setMatrixAt(i, m4); m4.makeTranslation(-0.75 + i * 0.5, 0.06, -0.66); legs.setMatrixAt(i + 4, m4); }
+  g.add(legs);
+  for (i = 0; i < 4; i++) {
+    g.add(mk(new THREE.BoxGeometry(0.3, 0.04, 0.62), M.plastic, -0.75 + i * 0.5, 0.51, 0.1));
+    var sl = mk(roundedBoxGeo(0.24, 0.2, 0.26, 0.04), M.white, -0.75 + i * 0.5, 0.62, 0.0);
+    sl.userData.sub = i; sliders.push(sl); picks.push(sl); g.add(sl);
+  }
+  var p = { tag: 'dip', foot: 2.8, label: 'DIP switches: flip a slider', group: g, picks: picks, pos: [0, 0, 0, 0],
+    tap: function (pt, sub) { var k = sub == null ? Math.floor(Math.random() * 4) : sub; ons[k] = !ons[k]; Snd.play('click'); },
+    update: function (dt) { sliders.forEach(function (sl, k) { var t = ons[k] ? 0.2 : -0.2; p.pos[k] += (t - p.pos[k]) * (1 - Math.exp(-dt * 18)); sl.position.z = p.pos[k]; }); } };
+  return p;
+}
+function mkButton(kind, color) {
+  var g = new THREE.Group(), picks = [], capMat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.35, metalness: 0.0, envMapIntensity: 0.6 });
+  var shell = mk(roundedBoxGeo(1.2, 0.2, 1.2, 0.06), M.steel, 0, 0.1, 0); g.add(shell); picks.push(shell);
+  var blk = mk(roundedBoxGeo(0.9, 0.24, 0.9, 0.08), M.plastic, 0, 0.3, 0); g.add(blk); picks.push(blk);
+  var cap = mk(new THREE.CylinderGeometry(0.32, 0.34, 0.2, 22), capMat, 0, 0.5, 0); g.add(cap); picks.push(cap);
+  [[-1, -1], [1, -1], [1, 1], [-1, 1]].forEach(function (c) { g.add(mk(new THREE.BoxGeometry(0.22, 0.04, 0.12), M.pin, c[0] * 0.66, 0.05, c[1] * 0.45)); });
+  var freq = kind === 'reset' ? 880 : 520 + Math.floor(R0() * 300);
+  var p = { tag: 'btn', foot: 1.5, label: kind === 'reset' ? 'Reset button: lights up every trace' : 'Push button: press it', group: g, picks: picks, press: 0,
+    tap: function () { p.press = 1; Snd.play('beep', freq); if (kind === 'reset') { lightAll(); Snd.play('zap'); } },
+    update: function (dt) { p.press = Math.max(0, p.press - dt * 5); cap.position.y = 0.5 - Math.sin(p.press * Math.PI) * 0.1; } };
+  return p;
+}
+function mkPot() {
+  var g = new THREE.Group(), picks = [];
+  var base = mk(roundedBoxGeo(1.5, 0.55, 1.5, 0.08), M.blue, 0, 0.28, 0); g.add(base); picks.push(base);
+  var knob = new THREE.Group(); knob.position.y = 0.58;
+  var kb = mk(new THREE.CylinderGeometry(0.4, 0.42, 0.12, 20), M.gold, 0, 0.04, 0); knob.add(kb); picks.push(kb);
+  knob.add(mk(new THREE.BoxGeometry(0.62, 0.05, 0.1), M.plastic, 0, 0.11, 0)); g.add(knob);
+  var p = { tag: 'pot', foot: 1.8, label: 'Trimmer dial: turn it', group: g, picks: picks, step: 0, ang: 0, target: 0,
+    tap: function () { p.step++; p.target += 0.9; Snd.play('beep', 220 + (p.step % 8) * 70); },
+    update: function (dt) { p.ang += (p.target - p.ang) * (1 - Math.exp(-dt * 12)); knob.rotation.y = p.ang; } };
+  return p;
+}
+function mkBuzzer() {
+  var g = new THREE.Group(), picks = [];
+  var b = mk(new THREE.CylinderGeometry(0.78, 0.8, 0.6, 28), M.plastic, 0, 0.3, 0); g.add(b); picks.push(b);
+  var top = mk(new THREE.CircleGeometry(0.72, 28), new THREE.MeshStandardMaterial({ map: buzzerTex(), roughness: 0.5, metalness: 0.2 }), 0, 0.605, 0); top.rotation.x = -Math.PI / 2; g.add(top);
+  var p = { tag: 'bz', foot: 2.0, label: 'Buzzer: tap to hear it', group: g, picks: picks, t: 0,
+    tap: function () { p.t = 0.4; Snd.play('buzz'); },
+    update: function (dt) { if (p.t > 0) { p.t -= dt; var j = 1 + Math.sin(p.t * 90) * 0.04; g.scale.set(j, 1, j); } else g.scale.set(1, 1, 1); } };
+  return p;
+}
+function mkBattery() {
+  var g = new THREE.Group(), picks = [];
+  g.add(mk(roundedBoxGeo(3.3, 0.34, 3.0, 0.14), M.plastic, 0, 0.17, 0));
+  g.add(mk(new THREE.BoxGeometry(0.9, 0.06, 0.4), M.pin, -1.45, 0.62, 0)); g.add(mk(new THREE.BoxGeometry(0.1, 0.5, 0.4), M.pin, -1.65, 0.38, 0));
+  var cell = new THREE.Group(); cell.position.y = 0.55;
+  var c1 = mk(new THREE.CylinderGeometry(1.2, 1.2, 0.34, 40), M.steel, 0, 0, 0); cell.add(c1); picks.push(c1);
+  var c2 = mk(new THREE.CircleGeometry(1.14, 40), new THREE.MeshStandardMaterial({ map: batteryTex(), roughness: 0.3, metalness: 0.9, envMapIntensity: 1.1 }), 0, 0.175, 0); c2.rotation.x = -Math.PI / 2; cell.add(c2); picks.push(c2);
+  g.add(cell);
+  var p = { tag: 'bat', foot: 3.4, label: 'Coin battery: tap to flip it', group: g, picks: picks, t: 0,
+    tap: function () { p.t = 1; Snd.play('boing'); },
+    update: function (dt) { if (p.t > 0) { p.t = Math.max(0, p.t - dt * 1.3); var e = 1 - p.t; cell.rotation.y = e * Math.PI * 2; cell.position.y = 0.55 + Math.sin(e * Math.PI) * 0.9; } } };
+  return p;
+}
+function mkCrystal() {
+  var g = new THREE.Group(), picks = [];
+  var b = mk(roundedBoxGeo(1.25, 0.42, 0.55, 0.18), M.alu, 0, 0.3, 0); g.add(b); picks.push(b);
+  g.add(mk(new THREE.BoxGeometry(0.1, 0.1, 0.1), M.pin, -0.45, 0.06, 0.35)); g.add(mk(new THREE.BoxGeometry(0.1, 0.1, 0.1), M.pin, 0.45, 0.06, 0.35));
+  var ring = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.025, 6, 28), new THREE.MeshBasicMaterial({ color: 0x9dffc8, transparent: true, opacity: 0 }));
+  ring.rotation.x = Math.PI / 2; ring.position.y = 0.55; g.add(ring);
+  var p = { tag: 'xtal', foot: 1.4, label: 'Crystal oscillator: tap to tick', group: g, picks: picks, t: 0,
+    tap: function () { p.t = 1; Snd.play('click'); setTimeout(function () { Snd.play('click'); }, 110); },
+    update: function (dt) { if (p.t > 0) { p.t = Math.max(0, p.t - dt * 1.6); var e = 1 - p.t; ring.scale.setScalar(1 + e * 5); ring.material.opacity = p.t * 0.8; } else ring.material.opacity = 0; } };
+  return p;
+}
+function mkLedBank() {
+  var g = new THREE.Group(), picks = [], mats = [], cols = [0xff4d4d, 0xffb84d, 0xfff04d, 0x4dff8a, 0x4da6ff, 0xc77dff];
+  var base = mk(roundedBoxGeo(3.8, 0.1, 0.7, 0.04), M.pcbDark, 0, 0.05, 0); g.add(base); picks.push(base);
+  cols.forEach(function (c, i) {
+    var pk = mk(roundedBoxGeo(0.46, 0.14, 0.3, 0.04), M.white, -1.55 + i * 0.62, 0.17, 0); g.add(pk); picks.push(pk);
+    var m = new THREE.MeshBasicMaterial({ color: c }); mats.push(m);
+    var l = mk(new THREE.BoxGeometry(0.28, 0.06, 0.18), m, -1.55 + i * 0.62, 0.26, 0); g.add(l); picks.push(l);
+  });
+  var p = { tag: 'led', foot: 4.0, label: 'LED strip: tap for a light show', group: g, picks: picks, chase: 0,
+    tap: function () { p.chase = 1.4; Snd.play('chase'); },
+    update: function (dt, t) {
+      if (p.chase > 0) p.chase -= dt;
+      mats.forEach(function (m, i) {
+        var k = p.chase > 0 ? Math.max(0, Math.sin((p.chase * 9) - i * 0.9)) * 0.9 + 0.1 : 0.35 + 0.25 * Math.sin(t * 1.3 + i);
+        m.color.setHex(cols[i]); m.color.multiplyScalar(k);
+      });
+    } };
+  return p;
+}
+function mkDimm() {
+  var g = new THREE.Group(), picks = [], strip = [], rgbMats = [];
+  for (var i = 0; i < 2; i++) {
+    var sx = -0.55 + i * 1.1;
+    var sl = mk(roundedBoxGeo(0.5, 0.5, 6.3, 0.05), M.ivory, sx, 0.25, 0); g.add(sl); picks.push(sl);
+    g.add(mk(new THREE.BoxGeometry(0.16, 0.03, 5.6), M.gold, sx, 0.52, 0));
+    g.add(mk(new THREE.BoxGeometry(0.5, 0.52, 0.12), M.plastic, sx, 0.26, 0.45));
+    [-1, 1].forEach(function (e) { var lt = mk(roundedBoxGeo(0.34, 0.5, 0.34, 0.06), M.ivory, sx, 0.44, e * 3.3); lt.rotation.x = -e * 0.15; g.add(lt); picks.push(lt); });
+  }
+  /* one slot holds a memory module with a glowing light bar */
+  var mod = new THREE.Group(); mod.position.set(0.55, 0.52, 0);
+  mod.add(mk(new THREE.BoxGeometry(0.07, 1.3, 5.7), M.pcbDark, 0, 0.65, 0));
+  mod.add(mk(new THREE.BoxGeometry(0.075, 0.12, 5.4), M.gold, 0, 0.06, 0));
+  for (i = 0; i < 4; i++) { mod.add(mk(new THREE.BoxGeometry(0.1, 0.42, 0.9), M.epoxy, 0.04, 0.55, -2.0 + i * 1.3)); mod.add(mk(new THREE.BoxGeometry(0.1, 0.42, 0.9), M.epoxy, -0.04, 0.55, -2.0 + i * 1.3)); }
+  var hs = mk(roundedBoxGeo(0.12, 0.55, 5.5, 0.04), M.alu, 0.09, 1.0, 0); mod.add(hs); picks.push(hs);
+  for (i = 0; i < 12; i++) { var m = new THREE.MeshBasicMaterial({ color: 0xffffff }); rgbMats.push(m); mod.add(mk(new THREE.BoxGeometry(0.1, 0.1, 0.34), m, 0.1, 1.33, -2.5 + i * 0.455)); }
+  g.add(mod);
+  var p = { tag: 'dimm', foot: 3.4, tagDz: 3.4, label: 'Memory: tap to speed up the light bar', group: g, picks: picks, boost: 0,
+    tap: function () { p.boost = 1; Snd.play('chase'); },
+    update: function (dt, t) {
+      p.boost = Math.max(0, p.boost - dt * 0.8);
+      var sp = 0.5 + p.boost * 4;
+      rgbMats.forEach(function (m, k) { var h = ((t * sp * 0.25) + k / 12) % 1; m.color.setHSL(h, 0.9, 0.55); });
+    } };
+  return p;
+}
+function mkPcie() {
+  var g = new THREE.Group(), picks = [], glowMat = new THREE.MeshBasicMaterial({ color: 0x9dffc8, transparent: true, opacity: 0 });
+  var sl = mk(roundedBoxGeo(7.0, 0.5, 0.95, 0.06), M.plastic, 0, 0.25, 0); g.add(sl); picks.push(sl);
+  g.add(mk(new THREE.BoxGeometry(6.5, 0.03, 0.2), M.gold, 0, 0.52, 0.12));
+  g.add(mk(new THREE.BoxGeometry(0.12, 0.52, 0.95), M.pcbDark, -1.2, 0.26, 0));
+  var lt = mk(roundedBoxGeo(0.4, 0.5, 0.8, 0.06), M.ivory, 3.6, 0.3, 0); g.add(lt); picks.push(lt);
+  var glow = mk(new THREE.BoxGeometry(0.8, 0.05, 0.3), glowMat, -3.2, 0.56, 0.12); g.add(glow);
+  var p = { tag: 'pcie', foot: 7.2, label: 'Expansion slot: tap to scan it', group: g, picks: picks, t: 0,
+    tap: function () { p.t = 1; Snd.play('chase'); },
+    update: function (dt) { if (p.t > 0) p.t = Math.max(0, p.t - dt * 1.2); glowMat.opacity = p.t > 0 ? 0.9 : 0; glow.position.x = -3.2 + (1 - p.t) * 6.4; } };
+  return p;
+}
+function mkAtx() {
+  var g = new THREE.Group(), picks = [], mats = [];
+  var b = mk(roundedBoxGeo(3.4, 0.9, 1.15, 0.06), M.ivory, 0, 0.45, 0); g.add(b); picks.push(b);
+  g.add(mk(new THREE.BoxGeometry(1.2, 0.2, 0.2), M.ivory, 0.5, 0.9, 0.55));
+  for (var i = 0; i < 12; i++) for (var j = 0; j < 2; j++) {
+    var m = new THREE.MeshBasicMaterial({ color: 0x0b0c0e }); mats.push(m);
+    var h = mk(new THREE.BoxGeometry(0.19, 0.04, 0.22), m, -1.5 + i * 0.27, 0.92, -0.25 + j * 0.5); g.add(h);
+  }
+  var p = { tag: 'atx', foot: 3.6, label: 'Power connector: tap to energise it', group: g, picks: picks, t: 0,
+    tap: function () { p.t = 1; Snd.play('chase'); },
+    update: function (dt) {
+      if (p.t > 0) p.t = Math.max(0, p.t - dt * 0.9);
+      mats.forEach(function (m, k) { var on = p.t > 0 && Math.abs((1 - p.t) * 14 - Math.floor(k / 2)) < 1.4; m.color.setHex(on ? 0x6dffb0 : 0x0b0c0e); });
+    } };
+  return p;
+}
+function mkSata() {
+  var g = new THREE.Group(), picks = [], ledMat = new THREE.MeshBasicMaterial({ color: 0x3a1010 });
+  var b = mk(roundedBoxGeo(1.5, 0.9, 0.95, 0.05), M.plastic, 0, 0.45, 0); g.add(b); picks.push(b);
+  g.add(mk(new THREE.BoxGeometry(1.1, 0.28, 0.6), M.steel, 0.15, 0.62, 0.0));
+  g.add(mk(new THREE.BoxGeometry(0.18, 0.5, 0.65), M.plastic, -0.55, 0.65, 0));
+  var led = mk(new THREE.BoxGeometry(0.16, 0.06, 0.16), ledMat, 0.55, 0.93, -0.3); g.add(led);
+  var p = { tag: 'sata', foot: 1.8, label: 'Drive port: tap to connect', group: g, picks: picks, t: 0,
+    tap: function () { p.t = 1; Snd.play('click'); },
+    update: function (dt) { if (p.t > 0) p.t = Math.max(0, p.t - dt * 1.2); ledMat.color.setHex(p.t > 0 && Math.floor(p.t * 10) % 2 ? 0xff4d4d : 0x3a1010); } };
+  return p;
+}
+function mkHeatsink() {
+  var g = new THREE.Group(), picks = [];
+  var items = [{ g: roundedBoxGeo(3.4, 0.24, 2.2, 0.05), m: mt(0, 0.12, 0), c: [0.72, 0.75, 0.8] }];
+  for (var i = 0; i < 11; i++) items.push({ g: roundedBoxGeo(0.09, 1.0, 2.05, 0.03), m: mt(-1.5 + i * 0.3, 0.74, 0), c: [0.72, 0.75, 0.8] });
+  var mat = new THREE.MeshStandardMaterial({ vertexColors: true, color: 0xffffff, roughness: 0.34, metalness: 1.0, envMapIntensity: 1.2, emissive: 0x000000 });
+  var body = new THREE.Mesh(mergeGeos(items), mat); g.add(body); picks.push(body);
+  g.add(mk(new THREE.BoxGeometry(3.5, 0.05, 0.08), M.steel, 0, 1.25, 0.3));
+  var p = { tag: 'hs', foot: 3.6, label: 'Heatsink: tap to heat it up', group: g, picks: picks, heat: 0,
+    tap: function () { p.heat = 1; Snd.play('hiss'); },
+    update: function (dt) { p.heat = Math.max(0, p.heat - dt * 0.7); mat.emissive.setRGB(p.heat * 0.7, p.heat * 0.22, 0); } };
+  return p;
+}
+function mkPort() {
+  var g = new THREE.Group(), picks = [];
+  var b = mk(roundedBoxGeo(2.0, 1.3, 2.4, 0.06), M.steel, 0, 0.65, 0); g.add(b); picks.push(b);
+  g.add(mk(new THREE.BoxGeometry(1.5, 0.7, 0.06), M.plastic, 0, 0.62, 1.2));
+  g.add(mk(new THREE.BoxGeometry(1.2, 0.12, 0.9), M.blue, 0, 0.62, 0.8));
+  var plug = new THREE.Group(); plug.position.set(0, 0.62, 0.55);
+  var shell = mk(roundedBoxGeo(1.1, 0.5, 0.9, 0.05), M.steel, 0, 0, 0); plug.add(shell); picks.push(shell);
+  plug.add(mk(new THREE.BoxGeometry(0.7, 0.36, 0.6), M.plastic, 0, 0, -0.6)); g.add(plug);
+  var p = { tag: 'port', foot: 3.2, label: 'USB port: tap to plug in', group: g, picks: picks, t: 0,
+    tap: function () { p.t = 1; Snd.play('click'); },
+    update: function (dt) { if (p.t > 0) { p.t = Math.max(0, p.t - dt * 2); plug.position.z = 0.55 + Math.sin(p.t * Math.PI) * 1.4; } } };
+  return p;
+}
+function mkScrew() {
+  var g = new THREE.Group(), picks = [];
+  g.add(mk(new THREE.RingGeometry(0.48, 0.74, 24), M.gold, 0, 0.012, 0)).rotation.x = -Math.PI / 2;
+  var sc = new THREE.Group(); sc.position.y = 0.1;
+  var h = mk(new THREE.CylinderGeometry(0.46, 0.5, 0.16, 22), M.steel, 0, 0.08, 0); sc.add(h); picks.push(h);
+  sc.add(mk(new THREE.BoxGeometry(0.66, 0.05, 0.1), M.plastic, 0, 0.165, 0)); sc.add(mk(new THREE.BoxGeometry(0.1, 0.05, 0.66), M.plastic, 0, 0.165, 0));
+  g.add(sc);
+  var p = { tag: 'scr', foot: 1.6, label: 'Screw: tap to turn it', group: g, picks: picks, t: 0,
+    tap: function () { p.t = 1; Snd.play('click'); },
+    update: function (dt) { if (p.t > 0) { p.t = Math.max(0, p.t - dt * 1.5); sc.rotation.y = (1 - p.t) * Math.PI * 2; } } };
+  return p;
+}
+
+function buildParts() {
+  var big = [
+    ['fan', mkFan, 3.9, 3.9, 0], ['fan', mkFan, 3.9, 3.9, 0],
+    ['pcie', mkPcie, 7.2, 1.3, 1], ['pcie', mkPcie, 7.2, 1.3, 1],
+    ['dimm', mkDimm, 2.4, 6.6, 1],
+    ['bat', mkBattery, 3.5, 3.2, 0],
+    ['hs', mkHeatsink, 3.6, 2.4, 1], ['hs', mkHeatsink, 3.6, 2.4, 1], ['hs', mkHeatsink, 3.6, 2.4, 1],
+    ['atx', mkAtx, 3.6, 1.5, 1],
+    ['port', mkPort, 3.2, 2.8, 1], ['port', mkPort, 3.2, 2.8, 1],
+    ['fan', mkFan, 3.9, 3.9, 0]
+  ];
+  var small = [
+    ['led', mkLedBank, 4.0, 1.1], ['led', mkLedBank, 4.0, 1.1], ['led', mkLedBank, 4.0, 1.1],
+    ['dip', mkDip, 2.8, 1.5], ['dip', mkDip, 2.8, 1.5],
+    ['sata', mkSata, 1.8, 1.4], ['sata', mkSata, 1.8, 1.4],
+    ['btn', function () { return mkButton('reset', 0xd9342f); }, 1.5, 1.5], ['btn', function () { return mkButton('btn', 0x2f7bd9); }, 1.5, 1.5], ['btn', function () { return mkButton('btn', 0xe8c25a); }, 1.5, 1.5],
+    ['pot', mkPot, 1.8, 1.8], ['pot', mkPot, 1.8, 1.8],
+    ['bz', mkBuzzer, 2.0, 2.0], ['bz', mkBuzzer, 2.0, 2.0],
+    ['xtal', mkCrystal, 1.4, 0.8], ['xtal', mkCrystal, 1.4, 0.8], ['xtal', mkCrystal, 1.4, 0.8]
+  ];
+  big.forEach(function (b) {
+    var fixed = null;
+    if (b[0] === 'port') fixed = { x: BW / 2 - 4.4 };
+    var spot = findSpot(b[2], b[3], 700, 0.4, fixed);
+    if (!spot) return;
+    regPart(b[1](), spot[0], spot[1], b[0] === 'port' ? -Math.PI / 2 : (b[4] ? 0 : R0() * 6.28));
+  });
+  small.forEach(function (s) {
+    var spot = findSpot(s[2], s[3], 500, 0.3);
+    if (!spot) return;
+    regPart(s[1](), spot[0], spot[1], 0);
+  });
+  [[-BW / 2 + 3, -BD / 2 + 3], [BW / 2 - 3, -BD / 2 + 3], [-BW / 2 + 3, BD / 2 - 3], [BW / 2 - 3, BD / 2 - 3], [0, -BD / 2 + 2.6], [0, BD / 2 - 2.6]].forEach(function (p) { regPart(mkScrew(), p[0], p[1], 0); });
+}
+
+/* ---------------- instanced small components ---------------- */
+function buildInstanced() {
+  var m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0);
+  function make(kind, key, geom, mat, count, sizeFn, shadow, wire) {
+    var items = [], mesh = new THREE.InstancedMesh(geom, mat, count), i;
+    for (i = 0; i < count; i++) {
+      var s = sizeFn(); var spot = findSpot(s.fw, s.fd, 60, 0.15);
+      if (!spot) continue;
+      items.push({ x: spot[0], z: spot[1], y: s.y, ry: R0() > 0.5 ? 0 : Math.PI / 2, sx: s.sx, sy: s.sy, sz: s.sz });
+      if (wire && (items.length % wire === 0)) addWire(spot[0], spot[1]);
+    }
+    mesh.count = items.length;
+    items.forEach(function (it, k) { q.setFromAxisAngle(up, it.ry); m4.compose(new THREE.Vector3(it.x, it.y, it.z), q, new THREE.Vector3(it.sx, it.sy, it.sz)); mesh.setMatrixAt(k, m4); });
+    mesh.instanceMatrix.needsUpdate = true;
+    mesh.userData.items = items; mesh.userData.kind = kind; mesh.castShadow = !!shadow; mesh.receiveShadow = true;
+    addPick(mesh, { type: 'inst', kind: kind, mesh: mesh });
+    scene.add(mesh); instMeshes[key] = mesh;
+  }
+  /* aluminium electrolytic capacitors in three sleeve colours, with vented tops */
+  var topMat = new THREE.MeshStandardMaterial({ map: capTopTex(), roughness: 0.35, metalness: 0.8, envMapIntensity: 1.0 });
+  var botMat = new THREE.MeshStandardMaterial({ color: 0x15171b, roughness: 0.7 });
+  [['#1f4aa8', 'capB', 16], ['#1c1e24', 'capK', 16], ['#256b3e', 'capG', 12]].forEach(function (c) {
+    var side = new THREE.MeshStandardMaterial({ map: capSideTex(c[0]), roughness: 0.45, metalness: 0.15, envMapIntensity: 0.5 });
+    make('cap', c[1], new THREE.CylinderGeometry(1, 1, 1, 22, 1), [side, topMat, botMat], c[2],
+      function () { var r = 0.24 + R0() * 0.16, h = 0.55 + R0() * 0.6; return { fw: r * 2, fd: r * 2, y: h / 2, sx: r, sy: h, sz: r }; }, true, 2);
+  });
+  /* SMD ceramic capacitors and resistors: body plus silver end caps, merged into one shape */
+  function smdGeo(body) {
+    var E = [0.8, 0.82, 0.86];
+    return mergeGeos([
+      { g: roundedBoxGeo(1, 1, 1, 0.12, 2), m: mt(0, 0, 0, 0.62, 1, 1), c: body },
+      { g: new THREE.BoxGeometry(1, 1, 1), m: mt(-0.4, 0, 0, 0.2, 1.04, 1.04), c: E },
+      { g: new THREE.BoxGeometry(1, 1, 1), m: mt(0.4, 0, 0, 0.2, 1.04, 1.04), c: E }
+    ]);
+  }
+  var smdMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.45, metalness: 0.5, envMapIntensity: 0.8 });
+  make('res', 'res', smdGeo([0.07, 0.075, 0.09]), smdMat, 130, function () { return { fw: 0.55, fd: 0.32, y: 0.06, sx: 0.5, sy: 0.12, sz: 0.26 }; }, false, 3);
+  make('mlcc', 'mlcc', smdGeo([0.5, 0.36, 0.2]), smdMat, 70, function () { return { fw: 0.55, fd: 0.32, y: 0.07, sx: 0.5, sy: 0.14, sz: 0.28 }; }, false, 3);
+  /* toroid coils with copper windings */
+  var coilTex = canvasTex(128, 32, function (g, w, h) { g.fillStyle = '#7a4a24'; g.fillRect(0, 0, w, h); for (var i = 0; i < 32; i++) { g.fillStyle = i % 2 ? '#c98a4a' : '#8a5428'; g.fillRect(i * 4, 0, 3, h); } });
+  coilTex.wrapS = coilTex.wrapT = THREE.RepeatWrapping;
+  make('coil', 'coil', new THREE.TorusGeometry(0.36, 0.16, 10, 28), new THREE.MeshStandardMaterial({ map: coilTex, roughness: 0.4, metalness: 0.6, envMapIntensity: 0.9 }), 16,
+    function () { return { fw: 1.0, fd: 1.0, y: 0.17, sx: 1, sy: 1, sz: 1 }; }, true, 1);
+  /* SMD power inductors */
+  make('smdl', 'smdl', roundedBoxGeo(1, 1, 1, 0.14, 3), new THREE.MeshStandardMaterial({ color: 0x23262d, roughness: 0.55, metalness: 0.4, envMapIntensity: 0.6 }), 14,
+    function () { return { fw: 0.95, fd: 0.95, y: 0.24, sx: 0.85, sy: 0.48, sz: 0.85 }; }, true, 1);
+  /* vias: gold rings with a dark hole, at trace bends */
+  var viaPts = []; polys.forEach(function (p) { for (var i = 1; i < p.pts.length - 1; i += 2) viaPts.push(p.pts[i]); });
+  var viaGeo = mergeGeos([
+    { g: new THREE.CylinderGeometry(0.14, 0.14, 0.05, 14), m: mt(0, 0, 0), c: [0.85, 0.7, 0.3] },
+    { g: new THREE.CylinderGeometry(0.06, 0.06, 0.06, 10), m: mt(0, 0.01, 0), c: [0.05, 0.1, 0.07] }
+  ]);
+  var vias = new THREE.InstancedMesh(viaGeo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.35, metalness: 0.9, envMapIntensity: 1.0 }), viaPts.length), items2 = [];
+  viaPts.forEach(function (pt, i) { q.identity(); m4.compose(new THREE.Vector3(pt[0], 0.05, pt[1]), q, new THREE.Vector3(1, 1, 1)); vias.setMatrixAt(i, m4); items2.push({ x: pt[0], z: pt[1], y: 0.05, ry: 0, sx: 1, sy: 1, sz: 1 }); });
+  vias.instanceMatrix.needsUpdate = true; vias.userData.items = items2; vias.userData.kind = 'via';
+  addPick(vias, { type: 'inst', kind: 'via', mesh: vias }); scene.add(vias); instMeshes.via = vias;
+}
+function popInstance(mesh, id) {
+  for (var i = 0; i < popList.length; i++) if (popList[i].mesh === mesh && popList[i].id === id) { popList[i].t = 0; return; }
+  popList.push({ mesh: mesh, id: id, t: 0 });
+}
+function updatePops(dt) {
+  if (!popList.length) return;
+  var m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), touched = [];
+  for (var i = popList.length - 1; i >= 0; i--) {
+    var p = popList[i]; p.t += dt * 2.2;
+    var it = p.mesh.userData.items[p.id], e = Math.min(1, p.t), hop = Math.sin(e * Math.PI) * 0.55 * (1 - e * 0.3), sc = 1 + Math.sin(e * Math.PI) * 0.25;
+    q.setFromAxisAngle(up, it.ry + e * 0.8 * (p.id % 2 ? 1 : -1));
+    m4.compose(new THREE.Vector3(it.x, it.y + hop, it.z), q, new THREE.Vector3(it.sx * sc, it.sy * (e < 1 ? sc : 1), it.sz * sc));
+    p.mesh.setMatrixAt(p.id, m4); if (touched.indexOf(p.mesh) < 0) touched.push(p.mesh);
+    if (p.t >= 1) {
+      q.setFromAxisAngle(up, it.ry); m4.compose(new THREE.Vector3(it.x, it.y, it.z), q, new THREE.Vector3(it.sx, it.sy, it.sz)); p.mesh.setMatrixAt(p.id, m4);
+      popList.splice(i, 1);
+    }
+  }
+  touched.forEach(function (m) { m.instanceMatrix.needsUpdate = true; });
+}
+
+/* ---------------- sparks, ambient pulses, route pulse ---------------- */
+var SPARK_N = 160, sparkData = [];
+function buildFx() {
+  var pos = new Float32Array(SPARK_N * 3), i;
+  for (i = 0; i < SPARK_N; i++) { pos[i * 3 + 1] = -100; sparkData.push({ vx: 0, vy: 0, vz: 0, life: 0 }); }
+  var g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  sparks = new THREE.Points(g, new THREE.PointsMaterial({ color: 0xffe9a0, size: 0.28, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+  sparks.frustumCulled = false; scene.add(sparks);
+  if (!reduce) {
+    ambient = new THREE.InstancedMesh(new THREE.SphereGeometry(0.1, 8, 6), new THREE.MeshBasicMaterial({ color: 0xd8ffe8 }), 30);
+    ambient.frustumCulled = false;
+    for (i = 0; i < 30; i++) { var p = polys[Math.floor(R0() * polys.length)]; ambientData.push({ p: p, s: R0() * p.len, v: 2 + R0() * 2, dir: R0() > 0.5 ? 1 : -1 }); }
+    scene.add(ambient);
+  }
+  var pg = new THREE.Group();
+  var core = new THREE.Mesh(new THREE.SphereGeometry(0.2, 14, 10), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+  var halo = new THREE.Mesh(new THREE.SphereGeometry(0.6, 14, 10), new THREE.MeshBasicMaterial({ color: 0x7dffb8, transparent: true, opacity: 0.28, depthWrite: false, blending: THREE.AdditiveBlending }));
+  var light = new THREE.PointLight(0x9dffc8, 1.6, 9);
+  light.position.y = 0.6; pg.add(core); pg.add(halo); pg.add(light);
+  var trail = new THREE.InstancedMesh(new THREE.SphereGeometry(0.16, 8, 6), new THREE.MeshBasicMaterial({ color: 0x9dffc8, transparent: true, opacity: 0.5, depthWrite: false, blending: THREE.AdditiveBlending }), 16);
+  trail.frustumCulled = false; trail.count = 0;
+  pg.visible = false; scene.add(pg); scene.add(trail);
+  pulseObj = { group: pg, trail: trail };
+}
+function spawnSparks(x, y, z, n) {
+  var arr = sparks.geometry.attributes.position.array, c = 0;
+  for (var i = 0; i < SPARK_N && c < n; i++) {
+    if (sparkData[i].life > 0) continue;
+    var a = Math.random() * 6.2832, sp = 2 + Math.random() * 3;
+    sparkData[i].vx = Math.cos(a) * sp; sparkData[i].vz = Math.sin(a) * sp; sparkData[i].vy = 3 + Math.random() * 3; sparkData[i].life = 0.5 + Math.random() * 0.4;
+    arr[i * 3] = x; arr[i * 3 + 1] = y; arr[i * 3 + 2] = z; c++;
+  }
+}
+function updateFx(dt, t) {
+  if (!sparks) return;
+  var arr = sparks.geometry.attributes.position.array, any = false;
+  for (var i = 0; i < SPARK_N; i++) {
+    var s = sparkData[i]; if (s.life <= 0) continue;
+    s.life -= dt; any = true;
+    s.vy -= 9 * dt; arr[i * 3] += s.vx * dt; arr[i * 3 + 1] += s.vy * dt; arr[i * 3 + 2] += s.vz * dt;
+    if (s.life <= 0 || arr[i * 3 + 1] < 0) { s.life = 0; arr[i * 3 + 1] = -100; }
+  }
+  if (any) sparks.geometry.attributes.position.needsUpdate = true;
+  if (ambient) {
+    var m4 = new THREE.Matrix4();
+    ambientData.forEach(function (a, i) {
+      a.s += a.v * dt * a.dir;
+      if (a.s > a.p.len) { a.s = a.p.len; a.dir = -1; } else if (a.s < 0) { a.s = 0; a.dir = 1; }
+      var pt = polyPoint(a.p, a.s); m4.makeTranslation(pt[0], 0.14, pt[1]); ambient.setMatrixAt(i, m4);
+      var si = 1; while (si < a.p.cum.length - 1 && a.p.cum[si] < a.s) si++;
+      if (a.p.lit[si - 1] < 0.55) a.p.lit[si - 1] = 0.55;
+    });
+    ambient.instanceMatrix.needsUpdate = true;
+  }
+}
+function lightAll() { polys.forEach(function (p) { for (var s = 0; s < p.lit.length; s++) p.lit[s] = 1; }); }
+
+/* ---------------- scene setup ---------------- */
+function buildScene() {
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x03140b);
+  scene.fog = new THREE.Fog(0x03140b, 70, 170);
+  camera = new THREE.PerspectiveCamera(45, W / H, 0.1, 300);
+  scene.add(new THREE.HemisphereLight(0xe6f4ea, 0x0a2a14, 0.5));
+  var sun = new THREE.DirectionalLight(0xfff6e6, 0.62);
+  sun.position.set(-18, 40, 16); sun.castShadow = true;
+  sun.shadow.mapSize.set(isTouch ? 1024 : 2048, isTouch ? 1024 : 2048);
+  sun.shadow.camera.left = -37; sun.shadow.camera.right = 37; sun.shadow.camera.top = 26; sun.shadow.camera.bottom = -26; sun.shadow.camera.near = 5; sun.shadow.camera.far = 120;
+  scene.add(sun);
+  if (renderer.shadowMap) { renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; }
+  makeMaterials();
+  makeEnv();
+  buildTraces();
+  NODES.forEach(function (n) { chips.push(buildChip(n)); });
+  buildParts();
+  buildInstanced();
+  buildBoardTop();
+  buildFx();
+  raycaster = new THREE.Raycaster();
+}
+
+/* ---------------- camera control ---------------- */
+function applyCam() {
+  var s = Math.sin(camS.pol), c = Math.cos(camS.pol);
+  camera.position.set(camS.tx + camS.dist * s * Math.sin(camS.az), camS.dist * c, camS.tz + camS.dist * s * Math.cos(camS.az));
+  camera.lookAt(camS.tx, 0, camS.tz);
+  camera.updateMatrixWorld(true);
+}
+function clampCam() {
+  camS.tx = clamp(camS.tx, -BW / 2, BW / 2); camS.tz = clamp(camS.tz, -BD / 2, BD / 2);
+  camS.dist = clamp(camS.dist, 5, 85); camS.pol = clamp(camS.pol, 0.06, 1.38);
+}
+function panBy(dx, dy) {
+  var scale = 2 * camS.dist * Math.tan(22.5 * Math.PI / 180) / H, cy = Math.max(0.3, Math.cos(camS.pol));
+  var rx = Math.cos(camS.az), rz = -Math.sin(camS.az), fx = -Math.sin(camS.az), fz = -Math.cos(camS.az);
+  camS.tx += -rx * dx * scale + fx * dy * scale / cy;
+  camS.tz += -rz * dx * scale + fz * dy * scale / cy;
+  clampCam();
+}
+function flyTo(x, z, dist, dur, done) {
+  if (reduce || dur <= 0) { camS.tx = x; camS.tz = z; camS.dist = dist; clampCam(); camAnim = null; if (done) done(); return; }
+  camAnim = { x0: camS.tx, z0: camS.tz, d0: camS.dist, x1: x, z1: z, d1: dist, t: 0, dur: dur, done: done };
+}
+
+/* ---------------- picking ---------------- */
+function pickAt(cx, cy) {
+  if (!hasGL) return null;
+  var nx = cx / W * 2 - 1, ny = -(cy / H) * 2 + 1;
+  raycaster.setFromCamera({ x: nx, y: ny }, camera);
+  var hits = raycaster.intersectObjects(pickables, false);
+  return hits.length ? hits[0] : null;
+}
+function groundAt(cx, cy) {
+  var nx = cx / W * 2 - 1, ny = -(cy / H) * 2 + 1;
+  raycaster.setFromCamera({ x: nx, y: ny }, camera);
+  var o = raycaster.ray.origin, d = raycaster.ray.direction;
+  if (Math.abs(d.y) < 1e-5) return null;
+  var t = -o.y / d.y; if (t < 0) return null;
+  return [o.x + d.x * t, o.z + d.z * t];
+}
+function handleTap(h) {
+  if (!h) return;
+  var info = h.object.userData.pick; if (!info) return;
+  hideHint();
+  if (info.type === 'chip') { routeTo(info.idx); }
+  else if (info.type === 'part') { info.part.tap(h.point, info.sub); }
+  else if (info.type === 'inst') {
+    var id = h.instanceId; if (id == null) return;
+    popInstance(info.mesh, id);
+    var it = info.mesh.userData.items[id];
+    if (info.kind === 'cap' || info.kind === 'coil' || info.kind === 'smdl') { spawnSparks(it.x, it.y + 0.4, it.z, 14); Snd.play('spark'); }
+    else if (info.kind === 'res' || info.kind === 'mlcc') { Snd.play('click'); }
+    else { Snd.play('tick'); }
+  }
+}
+
+/* ---------------- routing between chips ---------------- */
+function cancelRoute() {
+  routeState = null; camAnim = null;
+  if (pulseObj) { pulseObj.group.visible = false; pulseObj.trail.count = 0; }
+}
+function routeTo(i) {
+  closeParts();
+  var from = cur, n = NODES[i];
+  cancelRoute(); hideHint();
+  if (!hasGL) { cur = i; openDossier(i); return; }
+  if (from === i) { arriveNow(i); return; }
+  var route = routeBetween(from, i);
+  live('Tracing to ' + n.name);
+  if (reduce || route.len < 0.5) { flyTo(n.x, n.z, 14, 0, function () { cur = i; openDossier(i); }); return; }
+  Snd.play('zap');
+  var dur = clamp(route.len / 14, 1.3, 3.6), start = pointAt(route, 0);
+  routeState = { route: route, s: 0, t: 0, dur: dur, target: i, travelDist: clamp(Math.min(camS.dist, 22), 10, 30) };
+  pulseObj.group.visible = true;
+  if (Math.hypot(camS.tx - start[0], camS.tz - start[1]) > 25) { camS.tx = start[0]; camS.tz = start[1]; }
+}
+function arrive(rs) {
+  var n = NODES[rs.target];
+  routeState = null; pulseObj.group.visible = false; pulseObj.trail.count = 0;
+  flyTo(n.x, n.z, 14, 0.8, function () { cur = rs.target; Snd.play('lock'); openDossier(rs.target); });
+}
+function arriveNow(i) {
+  var n = NODES[i];
+  flyTo(n.x, n.z, Math.min(camS.dist, 14), 0.5, function () { Snd.play('lock'); openDossier(i); });
+}
+
+/* ---------------- per-frame update ---------------- */
+var lastT = performance.now(), flowV = 0, rafId = 0, lastBlipPoly = null, simT = 0;
+function update(dt) {
+  var px = camS.tx, pz = camS.tz, pd = camS.dist, pa = camS.az, pp = camS.pol;
+  simT += dt;
+  if (!dragging && (Math.abs(inertia.x) + Math.abs(inertia.z)) > 0.02 && !routeState && !camAnim) {
+    panBy(inertia.x * dt * 1000, inertia.z * dt * 1000);
+    var f = Math.pow(0.06, dt); inertia.x *= f; inertia.z *= f;
+  }
+  if (camAnim) {
+    camAnim.t += dt;
+    var u = easeIO(Math.min(1, camAnim.t / camAnim.dur));
+    camS.tx = camAnim.x0 + (camAnim.x1 - camAnim.x0) * u; camS.tz = camAnim.z0 + (camAnim.z1 - camAnim.z0) * u; camS.dist = camAnim.d0 + (camAnim.d1 - camAnim.d0) * u;
+    if (camAnim.t >= camAnim.dur) { var dn = camAnim.done; camAnim = null; if (dn) dn(); }
+  }
+  if (routeState) {
+    routeState.t += dt;
+    var e = easeIO(Math.min(1, routeState.t / routeState.dur));
+    routeState.s = routeState.route.len * e;
+    var hp = pointAt(routeState.route, routeState.s), k = 1 - Math.exp(-dt * 5);
+    camS.tx += (hp[0] - camS.tx) * k; camS.tz += (hp[1] - camS.tz) * k; camS.dist += (routeState.travelDist - camS.dist) * (1 - Math.exp(-dt * 3));
+    pulseObj.group.position.set(hp[0], 0.2, hp[1]);
+    var tm = new THREE.Matrix4(), cnt = 0;
+    for (var j = 1; j <= 14; j++) {
+      var tp = pointAt(routeState.route, routeState.s - j * 0.6), sc = 1 - j / 15;
+      tm.makeScale(sc, sc, sc); tm.setPosition(tp[0], 0.18, tp[1]); pulseObj.trail.setMatrixAt(cnt++, tm);
+    }
+    pulseObj.trail.count = cnt; pulseObj.trail.instanceMatrix.needsUpdate = true;
+    for (var r = 0; r < routeState.route.refs.length; r++) {
+      if (routeState.route.cum[r] <= routeState.s) { var ref = routeState.route.refs[r]; if (ref) ref.poly.lit[ref.idx] = 1; }
+    }
+    if (routeState.t >= routeState.dur) arrive(routeState);
+  }
+  clampCam();
+  /* pointer lights the traces it passes over */
+  if (ptrScreen && hasGL && !dossierOpen) {
+    var w = groundAt(ptrScreen[0], ptrScreen[1]);
+    if (w) {
+      var rad = clamp(camS.dist * 0.035, 0.6, 2.4);
+      for (var i = 0; i < polys.length; i++) {
+        var P = polys[i];
+        if (w[0] < P.bb[0] - rad || w[0] > P.bb[2] + rad || w[1] < P.bb[1] - rad || w[1] > P.bb[3] + rad) continue;
+        for (var s = 0; s < P.lit.length; s++) {
+          var a = P.pts[s], b = P.pts[s + 1], dx = b[0] - a[0], dz = b[1] - a[1], l2 = dx * dx + dz * dz;
+          var tt = l2 ? clamp(((w[0] - a[0]) * dx + (w[1] - a[1]) * dz) / l2, 0, 1) : 0;
+          var d = Math.hypot(w[0] - (a[0] + dx * tt), w[1] - (a[1] + dz * tt));
+          if (d < rad) {
+            if (P.lit[s] < 0.2 && lastBlipPoly !== P) { lastBlipPoly = P; Snd.play('blip'); }
+            P.lit[s] = Math.max(P.lit[s], 1 - d / rad * 0.4);
+          }
+        }
+      }
+    }
+  }
+  var dec = Math.pow(0.06, dt), hold = !!routeState;
+  for (var q = 0; q < polys.length; q++) { var L = polys[q].lit; for (var m = 0; m < L.length; m++) if (L[m] > 0 && !(hold && L[m] >= 1)) L[m] = L[m] * dec < 0.02 ? 0 : L[m] * dec; }
+  parts.forEach(function (p) { p.update(dt, simT); });
+  updatePops(dt);
+  updateFx(dt, simT);
+  chips.forEach(function (c, i) {
+    var on = i === hoverNode || (routeState && routeState.target === i);
+    c.outline.visible = on;
+    c.led.scale.setScalar(on ? 1.5 + 0.3 * Math.sin(simT * 6) : (reduce ? 1 : 1 + 0.25 * Math.sin(simT * 2 + i)));
+  });
+  /* panning sound follows how fast the view is moving */
+  var sp = (Math.hypot(camS.tx - px, camS.tz - pz) + Math.abs(camS.dist - pd) * 0.6 + Math.abs(camS.az - pa) * 8 + Math.abs(camS.pol - pp) * 8) / Math.max(0.001, dt);
+  var tv = sp < 1.2 ? 0 : Math.min(1, 0.12 + sp / 60);
+  flowV = flowV * 0.7 + tv * 0.3;
+  Snd.flow(flowV, (camS.tx + BW / 2) / BW);
+}
+
+/* ---------------- labels overlay and minimap ---------------- */
+var labelV = null;
+function drawLabels() {
+  lctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  lctx.clearRect(0, 0, W, H);
+  if (!hasGL) return;
+  lctx.font = '600 11px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace'; lctx.textAlign = 'center'; lctx.textBaseline = 'middle';
+  var far = camS.dist > 46;
+  for (var i = 0; i < NODES.length; i++) {
+    var n = NODES[i], act = i === hoverNode || i === cur;
+    if (far && !act && i !== 0) continue;
+    labelV = labelV || new THREE.Vector3();
+    labelV.set(n.x, (n.top || 1) + 0.8, n.z).project(camera);
+    if (labelV.z > 1 || labelV.x < -1.2 || labelV.x > 1.2 || labelV.y < -1.2 || labelV.y > 1.2) continue;
+    var sx = (labelV.x * 0.5 + 0.5) * W, sy = (-labelV.y * 0.5 + 0.5) * H;
+    var label = n.name.toUpperCase(), tw = lctx.measureText(label).width + 18;
+    lctx.fillStyle = 'rgba(2,14,8,0.82)'; lctx.fillRect(sx - tw / 2, sy - 10, tw, 20);
+    lctx.strokeStyle = act ? n.color : (n.real ? 'rgba(109,255,176,0.5)' : 'rgba(232,194,90,0.6)'); lctx.lineWidth = 1;
+    if (!n.real) lctx.setLineDash([3, 2]); else lctx.setLineDash([]);
+    lctx.strokeRect(sx - tw / 2 + 0.5, sy - 9.5, tw - 1, 19); lctx.setLineDash([]);
+    lctx.fillStyle = act ? '#ffffff' : '#cfeedd'; lctx.fillText(label, sx, sy + 1);
+  }
+}
+function drawMini() {
+  var mw = 120, mh = 80, sc = Math.min(mw / BW, mh / BD), ox = mw / 2, oy = mh / 2;
+  mctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  mctx.clearRect(0, 0, mw, mh);
+  mctx.fillStyle = '#0a5f2c'; mctx.fillRect(ox - BW * sc / 2, oy - BD * sc / 2, BW * sc, BD * sc);
+  mctx.strokeStyle = 'rgba(212,175,74,0.7)'; mctx.lineWidth = 1; mctx.beginPath();
+  for (var i = 0; i < polys.length; i += 2) { var P = polys[i].pts; mctx.moveTo(ox + P[0][0] * sc, oy + P[0][1] * sc); for (var j = 1; j < P.length; j++) mctx.lineTo(ox + P[j][0] * sc, oy + P[j][1] * sc); }
+  mctx.stroke();
+  for (i = 0; i < NODES.length; i++) {
+    var n = NODES[i]; mctx.fillStyle = i === cur ? '#ffffff' : (n.real ? '#6dffb0' : '#e8c25a');
+    mctx.fillRect(ox + (n.x - n.w / 2) * sc, oy + (n.z - n.d / 2) * sc, Math.max(3, n.w * sc), Math.max(3, n.d * sc));
+  }
+  var fw = camS.dist * 0.9 * (W / H), fh = camS.dist * 0.9, c = Math.cos(camS.az), s = Math.sin(camS.az);
+  mctx.strokeStyle = '#ffffff'; mctx.lineWidth = 1.5; mctx.beginPath();
+  [[-1, -1], [1, -1], [1, 1], [-1, 1]].forEach(function (k, idx) {
+    var lx = k[0] * fw / 2, lz = k[1] * fh / 2, wx = lx * c + lz * s, wz = -lx * s + lz * c;
+    var X = ox + (camS.tx + wx) * sc, Y = oy + (camS.tz + wz) * sc;
+    if (idx === 0) mctx.moveTo(X, Y); else mctx.lineTo(X, Y);
+  });
+  mctx.closePath(); mctx.stroke();
+}
+function frame(now) {
+  var dt = Math.min(0.05, (now - lastT) / 1000); lastT = now;
+  update(dt);
+  if (hasGL) { applyCam(); renderer.render(scene, camera); }
+  if (hasGL) updateTraceColors(false);
+  drawLabels(); drawMini();
+  rafId = requestAnimationFrame(frame);
+}
+document.addEventListener('visibilitychange', function () {
+  if (document.hidden) { cancelAnimationFrame(rafId); flowV = 0; Snd.flow(0, 0); }
+  else { lastT = performance.now(); rafId = requestAnimationFrame(frame); }
+});
+
+/* ---------------- pointer controls ---------------- */
+var ptrs = {}, moved = 0, t0 = 0, lastMoveT = 0, gest = null, rotMode = false, hoverT = 0;
+function ids() { return Object.keys(ptrs); }
+function hideHint() { $('#hint').classList.add('gone'); }
+var tip = $('#tip');
+glc.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+glc.addEventListener('pointerdown', function (e) {
+  if (dossierOpen) return;
+  try { glc.setPointerCapture(e.pointerId); } catch (er) {}
+  ptrs[e.pointerId] = [e.clientX, e.clientY];
+  ptrScreen = [e.clientX, e.clientY]; ptrActive = true; tip.style.display = 'none';
+  var n = ids().length;
+  if (n === 1) {
+    dragging = true; moved = 0; t0 = performance.now(); lastMoveT = t0; inertia.x = inertia.z = 0; cancelRoute();
+    rotMode = e.button === 2 || e.shiftKey || e.ctrlKey; glc.classList.add('grabbing'); hideHint();
+  } else if (n === 2) {
+    var k = ids(), a = ptrs[k[0]], b = ptrs[k[1]];
+    gest = { d: Math.hypot(a[0] - b[0], a[1] - b[1]), ang: Math.atan2(b[1] - a[1], b[0] - a[0]), cy: (a[1] + b[1]) / 2 };
+  }
+});
+glc.addEventListener('pointermove', function (e) {
+  ptrScreen = [e.clientX, e.clientY];
+  if (!ptrs[e.pointerId]) {
+    if (e.pointerType === 'mouse' && !dossierOpen && hasGL) {
+      var now = performance.now();
+      if (now - hoverT > 40) {
+        hoverT = now;
+        var h = pickAt(e.clientX, e.clientY), info = h && h.object.userData.pick, newNode = -1, label = '', newPart = null;
+        if (info) {
+          if (info.type === 'chip') { newNode = info.idx; label = NODES[newNode].name; }
+          else if (info.type === 'part') { newPart = info.part; label = info.part.label; }
+          else if (info.type === 'inst') { label = info.kind === 'cap' ? 'Capacitor: tap for sparks' : info.kind === 'res' ? 'Resistor: tap it' : info.kind === 'mlcc' ? 'Ceramic capacitor: tap it' : info.kind === 'coil' || info.kind === 'smdl' ? 'Coil: tap for sparks' : 'Via: tap it'; }
+        }
+        if (newNode !== hoverNode) { hoverNode = newNode; if (newNode >= 0) Snd.play('chime', newNode); }
+        hoverPart = newPart;
+        glc.classList.toggle('pointing', !!info);
+        if (label) { tip.textContent = label; tip.style.display = 'block'; tip.style.transform = 'translate(' + Math.min(W - 240, e.clientX + 14) + 'px,' + (e.clientY + 16) + 'px)'; }
+        else tip.style.display = 'none';
+      }
+    }
+    return;
+  }
+  var prev = ptrs[e.pointerId]; ptrs[e.pointerId] = [e.clientX, e.clientY];
+  var n = ids().length;
+  if (n === 1) {
+    var dx = e.clientX - prev[0], dy = e.clientY - prev[1], now2 = performance.now();
+    moved += Math.abs(dx) + Math.abs(dy);
+    if (rotMode) { camS.az -= dx * 0.006; camS.pol -= dy * 0.005; clampCam(); }
+    else {
+      panBy(dx, dy);
+      var dtm = Math.max(1, now2 - lastMoveT); lastMoveT = now2;
+      inertia.x = inertia.x * 0.6 + (dx / dtm) * 0.4; inertia.z = inertia.z * 0.6 + (dy / dtm) * 0.4;
+    }
+  } else if (n === 2 && gest) {
+    var k = ids(), a = ptrs[k[0]], b = ptrs[k[1]];
+    var d = Math.hypot(a[0] - b[0], a[1] - b[1]), ang = Math.atan2(b[1] - a[1], b[0] - a[0]), cy = (a[1] + b[1]) / 2;
+    if (gest.d > 0 && d > 0) camS.dist *= gest.d / d;
+    var da = ang - gest.ang; if (da > Math.PI) da -= 2 * Math.PI; if (da < -Math.PI) da += 2 * Math.PI;
+    camS.az += da;
+    camS.pol -= (cy - gest.cy) * 0.005;
+    gest = { d: d, ang: ang, cy: cy }; moved += 20; clampCam();
+  }
+});
+function endPtr(e) {
+  if (!ptrs[e.pointerId]) return;
+  delete ptrs[e.pointerId];
+  var n = ids().length;
+  if (n === 0) {
+    dragging = false; ptrActive = false; glc.classList.remove('grabbing'); gest = null;
+    if (e.type === 'pointerup' && moved < 9 && performance.now() - t0 < 600 && !rotMode) {
+      inertia.x = inertia.z = 0; handleTap(pickAt(e.clientX, e.clientY));
+    } else if (reduce) { inertia.x = inertia.z = 0; }
+    if (e.pointerType !== 'mouse') ptrScreen = null;
+  } else if (n === 1) { gest = null; inertia.x = inertia.z = 0; moved += 20; }
+}
+glc.addEventListener('pointerup', endPtr);
+glc.addEventListener('pointercancel', endPtr);
+glc.addEventListener('pointerleave', function (e) { if (e.pointerType === 'mouse') { ptrScreen = null; hoverNode = -1; hoverPart = null; tip.style.display = 'none'; glc.classList.remove('pointing'); } });
+glc.addEventListener('wheel', function (e) {
+  e.preventDefault(); cancelRoute(); hideHint();
+  if (e.altKey) { camS.az += e.deltaY * 0.003; return; }
+  camS.dist *= Math.exp(e.deltaY * (e.ctrlKey ? 0.01 : 0.0012)); clampCam();
+}, { passive: false });
+glc.addEventListener('keydown', function (e) {
+  var step = 60, used = true;
+  if (e.key === 'ArrowLeft') panBy(step, 0); else if (e.key === 'ArrowRight') panBy(-step, 0);
+  else if (e.key === 'ArrowUp') panBy(0, step); else if (e.key === 'ArrowDown') panBy(0, -step);
+  else if (e.key === 'q' || e.key === 'Q') camS.az -= 0.15; else if (e.key === 'e' || e.key === 'E') camS.az += 0.15;
+  else if (e.key === 'r' || e.key === 'R') camS.pol += 0.1; else if (e.key === 'f' || e.key === 'F') camS.pol -= 0.1;
+  else if (e.key === '+' || e.key === '=') camS.dist *= 0.8; else if (e.key === '-' || e.key === '_') camS.dist *= 1.25;
+  else used = false;
+  if (used) { e.preventDefault(); cancelRoute(); hideHint(); clampCam(); }
+});
+$('#zin').addEventListener('click', function () { cancelRoute(); camS.dist *= 0.75; clampCam(); Snd.play('tick'); });
+$('#zout').addEventListener('click', function () { cancelRoute(); camS.dist *= 1.33; clampCam(); Snd.play('tick'); });
+$('#rotL').addEventListener('click', function () { cancelRoute(); camS.az -= 0.4; Snd.play('tick'); });
+$('#rotR').addEventListener('click', function () { cancelRoute(); camS.az += 0.4; Snd.play('tick'); });
+$('#tilt').addEventListener('click', function () { cancelRoute(); camS.pol = camS.pol > 0.7 ? 0.2 : 1.1; clampCam(); Snd.play('tick'); });
+
+/* minimap: tap or drag to jump */
+function miniJump(e) {
+  var rect = mini.getBoundingClientRect(), mw = 120, mh = 80, sc = Math.min(mw / BW, mh / BD);
+  var mx = (e.clientX - rect.left) * (mw / rect.width), my = (e.clientY - rect.top) * (mh / rect.height);
+  camS.tx = (mx - mw / 2) / sc; camS.tz = (my - mh / 2) / sc; clampCam(); cancelRoute(); hideHint(); inertia.x = inertia.z = 0;
+}
+var miniDown = false;
+mini.addEventListener('pointerdown', function (e) { miniDown = true; try { mini.setPointerCapture(e.pointerId); } catch (er) {} miniJump(e); });
+mini.addEventListener('pointermove', function (e) { if (miniDown) miniJump(e); });
+mini.addEventListener('pointerup', function () { miniDown = false; });
+mini.addEventListener('pointercancel', function () { miniDown = false; });
+
+/* ---------------- parts list ---------------- */
+var partsEl = $('#parts'), partsBtn = $('#partsBtn');
+(function buildPartsList() {
+  var ul = $('#partsUl');
+  NODES.forEach(function (n, i) {
+    var li = document.createElement('li');
+    var kind = n.id === 'core' ? 'ABOUT' : n.id === 'io' ? 'CONTACT' : n.real ? 'REAL' : 'SAMPLE';
+    li.innerHTML = '<button type="button" data-i="' + i + '"><i class="dot" style="color:' + n.color + '"></i><div><b>' + esc(n.name) + '</b><span>' + esc(n.tag) + '</span></div><em class="' + (n.real ? '' : 's') + '">' + kind + '</em></button>';
+    ul.appendChild(li);
+  });
+  ul.addEventListener('click', function (e) { var b = e.target.closest('button[data-i]'); if (b) routeTo(+b.getAttribute('data-i')); });
+})();
+function openParts() { partsEl.classList.add('open'); partsBtn.setAttribute('aria-expanded', 'true'); Snd.play('tick'); var f = partsEl.querySelector('button[data-i]'); if (f) f.focus(); }
+function closeParts() { if (!partsEl.classList.contains('open')) return; partsEl.classList.remove('open'); partsBtn.setAttribute('aria-expanded', 'false'); }
+partsBtn.addEventListener('click', function () { partsEl.classList.contains('open') ? closeParts() : openParts(); });
+$('#partsClose').addEventListener('click', function () { closeParts(); partsBtn.focus(); });
+
+/* ---------------- dossier ---------------- */
+var dossier = $('#dossier'), sheet = $('#sheet'), dossierOpen = false, lastFocus = null, logTimers = [];
+function openDossier(i) {
+  var n = NODES[i];
+  lastFocus = document.activeElement;
+  var nb = neighbours[i].map(function (x) { return x.to; }).filter(function (v, k, a) { return a.indexOf(v) === k; });
+  var kind = n.id === 'core' || n.id === 'io' ? '' : n.real ? '<li class="real">Real project</li>' : '<li class="sample">Sample project</li>';
+  var h = '';
+  h += '<div class="dbar"><span style="color:' + n.color + '"><i class="led"></i>' + esc(n.part) + '</span><button class="dclose" type="button" data-close>Close</button></div>';
+  h += '<h2 id="dname">' + esc(n.name) + '</h2><p class="tag">' + esc(n.tag) + '</p>';
+  h += '<ul class="chips">' + kind + '<li>' + esc(n.type) + '</li><li>' + esc(n.year) + '</li><li>' + esc(n.role) + '</li><li>' + esc(n.status) + '</li></ul>';
+  if (!n.real) h += '<p class="note">Sample project. It is an example of how a client\'s work could be presented on a board like this. The details and figures are made up for the demo.</p>';
+  h += '<div class="sec"><h3>Spec sheet</h3><div class="metrics">' + n.metrics.map(function (m) { return '<div><b>' + esc(m[1]) + '</b><span>' + esc(m[0]) + '</span></div>'; }).join('') + '</div></div>';
+  h += '<div class="sec"><h3>Overview</h3><p>' + esc(n.about) + '</p></div>';
+  h += '<div class="sec"><h3>Highlights</h3><ul class="points">' + n.points.map(function (p) { return '<li>' + esc(p) + '</li>'; }).join('') + '</ul></div>';
+  h += '<div class="sec"><h3>Signal path</h3><div class="flow">' + n.arch.map(function (a, k) { return (k ? '<i>&rarr;</i>' : '') + '<span class="node">' + esc(a) + '</span>'; }).join('') + '</div></div>';
+  h += '<div class="sec"><h3>Pins (stack)</h3><ul class="pins">' + n.stack.map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('') + '</ul></div>';
+  h += '<div class="sec cols"><div><h3>' + (n.codeNote ? 'Snippet (illustration)' : 'Snippet') + '</h3><pre><code>' + esc(n.code.join('\n')) + '</code></pre></div><div><h3>Boot log</h3><pre class="log" id="logBox"></pre></div></div>';
+  h += '<div class="sec"><h3>Timeline</h3><ul class="timeline">' + n.timeline.map(function (t) { return '<li><b>' + esc(t[0]) + '</b>' + esc(t[1]) + '</li>'; }).join('') + '</ul></div>';
+  var acts = '';
+  if (n.links.repo) acts += '<a class="main" href="' + esc(n.links.repo) + '" target="_blank" rel="noopener noreferrer">View repository</a>';
+  if (n.links.demo) acts += '<a href="' + esc(n.links.demo) + '" target="_blank" rel="noopener noreferrer">' + esc(n.links.demoLabel || 'Live demo') + '</a>';
+  if (n.links.email) acts += '<a class="main" href="mailto:' + esc(n.links.email) + '">' + esc(n.links.email) + '</a>';
+  if (acts) h += '<div class="sec"><h3>Open</h3><div class="actions">' + acts + '</div></div>';
+  h += '<div class="sec"><h3>Connected to (follow a trace)</h3><div class="actions">' + nb.map(function (j) { return '<button type="button" data-go="' + j + '">' + esc(NODES[j].name) + '</button>'; }).join('') + '</div></div>';
+  sheet.innerHTML = h;
+  dossier.classList.add('open'); dossier.setAttribute('aria-hidden', 'false'); dossierOpen = true;
+  dossier.scrollTop = 0;
+  cur = i; ptrActive = false; ptrScreen = null; hoverNode = -1; tip.style.display = 'none';
+  var box = $('#logBox'); logTimers.forEach(clearTimeout); logTimers = [];
+  if (reduce) box.textContent = n.log.join('\n');
+  else n.log.forEach(function (ln, k) { logTimers.push(setTimeout(function () { box.textContent += (k ? '\n' : '') + ln; }, 250 + k * 320)); });
+  live('Opened ' + n.name);
+  var c = sheet.querySelector('.dclose'); if (c) c.focus();
+}
+function closeDossier(silent) {
+  if (!dossierOpen) return;
+  dossier.classList.remove('open'); dossier.setAttribute('aria-hidden', 'true'); dossierOpen = false;
+  logTimers.forEach(clearTimeout); logTimers = [];
+  if (!silent) Snd.play('tick');
+  if (lastFocus && lastFocus.focus) { try { lastFocus.focus({ preventScroll: true }); } catch (e) {} }
+}
+dossier.addEventListener('click', function (e) {
+  if (e.target.closest('[data-close]') || e.target === dossier) { closeDossier(); return; }
+  var g = e.target.closest('[data-go]');
+  if (g) { closeDossier(true); routeTo(+g.getAttribute('data-go')); }
+});
+document.addEventListener('keydown', function (e) {
+  if (!dossierOpen) { if (e.key === 'Escape') closeParts(); return; }
+  if (e.key === 'Escape') { closeDossier(); return; }
+  if (e.key === 'Tab') {
+    var f = [].slice.call(dossier.querySelectorAll('button, a[href]'));
+    if (!f.length) return;
+    var first = f[0], last = f[f.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  }
+});
+
+/* ---------------- portal travel (arrival, curtain, leaving) ---------------- */
+var world = $('#world'), iris = $('#iris');
+function run(duration, fn, done) {
+  var t0 = null, finished = false;
+  function end() { if (finished) return; finished = true; fn(1); if (done) done(); }
+  function step(ts) { if (finished) return; if (t0 === null) t0 = ts; var t = Math.min(1, (ts - t0) / duration); fn(easeIO(t)); if (t < 1) requestAnimationFrame(step); else end(); }
+  requestAnimationFrame(step);
+  setTimeout(end, duration + 700);
+}
+var params = new URLSearchParams(location.search);
+var fromPortal = !!params.get('portal');
+var pcol = (params.get('c') || '77,166,255').split(',').map(Number);
+if (pcol.length !== 3 || pcol.some(isNaN)) pcol = [77, 166, 255];
+var ox = parseFloat(params.get('x')), oy = parseFloat(params.get('y')), opx = parseFloat(params.get('px')), opy = parseFloat(params.get('py'));
+if (isNaN(ox)) ox = 0.5; if (isNaN(oy)) oy = 0.5;
+root.style.setProperty('--pc', pcol.join(','));
+function irisGeometry() {
+  var w = window.innerWidth, h = window.innerHeight, cx = ox * w, cy = oy * h;
+  if (isFinite(opx) && isFinite(opy)) { cx = clamp(opx, 0, w); cy = clamp(opy, 0, h); }
+  var R = Math.max(Math.hypot(cx, cy), Math.hypot(w - cx, cy), Math.hypot(cx, h + 160 - cy), Math.hypot(w - cx, h + 160 - cy)) + 40;
+  return { cx: cx, cy: cy, R: R };
+}
+function setIris(g, r) {
+  world.style.clipPath = 'circle(' + r.toFixed(1) + 'px at ' + g.cx.toFixed(1) + 'px ' + g.cy.toFixed(1) + 'px)';
+  iris.style.left = g.cx + 'px'; iris.style.top = g.cy + 'px'; iris.style.width = iris.style.height = (2 * r) + 'px';
+}
+function clearIris() { root.classList.remove('iris-on', 'portal-in'); root.style.background = ''; world.style.clipPath = ''; }
+
+var curtain = $('#curtain'), curtainDone = false;
+function dismissCurtain() {
+  if (curtainDone) return; curtainDone = true;
+  curtain.classList.add('gone');
+  setTimeout(function () { curtain.classList.remove('show'); curtain.style.display = 'none'; }, reduce ? 0 : 480);
+}
+function playCurtain() {
+  var real = PROJECTS.filter(function (p) { return p.real; }).length;
+  var lines = ['<span class="big">CIRCUIT CITY BIOS v3.0</span>', 'Memory test ............ OK', 'Detecting chips ........ ' + (NODES.length - 1) + ' found', 'Real projects .......... ' + real, 'Sample projects ........ ' + (PROJECTS.length - real), 'Tracing buses .......... ' + edgeDefs.length + ' linked', '', 'Press any key to boot'];
+  curtain.innerHTML = lines.map(function (l, k) { return '<div class="ln" style="animation-delay:' + (reduce ? 0 : 0.15 + k * 0.3).toFixed(2) + 's">' + (l || '&nbsp;') + '</div>'; }).join('') + '<div class="skip">Tap or press Enter to skip</div>';
+  curtain.classList.add('show');
+  curtain.addEventListener('click', dismissCurtain);
+  document.addEventListener('keydown', function onk(e) { if (curtainDone) { document.removeEventListener('keydown', onk); return; } e.preventDefault(); dismissCurtain(); });
+  setTimeout(dismissCurtain, 3000);
+}
+
+var leaving = false;
+function leave(href) {
+  if (leaving) return; leaving = true;
+  Snd.play('close');
+  var url = href + (href.indexOf('?') > -1 ? '&' : '?') + 'from=circuit-city&c=' + pcol.join(',');
+  if (reduce) { location.href = url; return; }
+  var g = irisGeometry();
+  root.style.background = 'rgb(' + pcol.join(',') + ')';
+  root.classList.add('iris-on'); setIris(g, g.R);
+  run(850, function (t) { setIris(g, g.R * (1 - t)); }, function () { location.href = url; });
+}
+document.addEventListener('click', function (e) {
+  var a = e.target.closest && e.target.closest('a[href="hub-homepage.html"]');
+  if (!a || e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button > 0) return;
+  e.preventDefault(); leave('hub-homepage.html');
+});
+window.addEventListener('pageshow', function (e) { if (e.persisted) { leaving = false; clearIris(); } });
+
+/* ---------------- start ---------------- */
+$('#hint').textContent = isTouch ? 'Drag to move. Two fingers: pinch to zoom, twist to rotate, slide to tilt. Tap any part.' : 'Drag to move. Right-drag to rotate and tilt. Scroll to zoom. Click any part.';
+hasGL = initRenderer();
+if (hasGL) {
+  try { buildScene(); } catch (err) { hasGL = false; if (window.console) console.error(err); }
+}
+resize();
+window.addEventListener('resize', resize);
+if (hasGL) {
+  camS.dist = W < 720 ? 30 : 34;
+  clampCam(); applyCam();
+} else {
+  var fb = $('#fallback');
+  fb.textContent = window.THREE ? 'Your browser could not start 3D graphics, so the board is not shown. The parts list below still opens every project.' : '3D could not load, so the board is not shown. The parts list below still opens every project.';
+  fb.classList.add('show'); glc.style.display = 'none'; mini.style.display = 'none';
+  setTimeout(openParts, 400);
+}
+rafId = requestAnimationFrame(frame);
+if (fromPortal && !reduce) {
+  var g0 = irisGeometry(); root.classList.add('iris-on'); setIris(g0, 0);
+  run(950, function (t) { setIris(g0, g0.R * t); }, function () { clearIris(); });
+} else if (fromPortal) { clearIris(); }
+else if (!reduce) { playCurtain(); }
+</script>
+</body>
+</html>
