@@ -267,7 +267,47 @@ var Snd = (function () {
       c.resume().then(function () { if (performance.now() - lastGesture < 1500) go(); }).catch(function () {});
     }
   }
-  return { play: play, on: on, pref: pref, set: set, ensure: ensure };
+  /* Scroll flow: an airy whoosh that follows how fast the page is moving.
+     It only exists while moving and fades out when scrolling stops. */
+  var fl = null, flStop = 0, flowBuf = null;
+  function flowKill() {
+    if (!fl) return;
+    try { fl.src.stop(); fl.o.stop(); } catch (e) {}
+    fl = null;
+  }
+  function flowStart() {
+    if (!flowBuf) {
+      flowBuf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 2.5), ctx.sampleRate);
+      var d = flowBuf.getChannelData(0);
+      for (var i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    }
+    var t = ctx.currentTime;
+    var src = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+    var o = ctx.createOscillator(), og = ctx.createGain();
+    src.buffer = flowBuf; src.loop = true;
+    f.type = 'bandpass'; f.Q.value = 0.8; f.frequency.value = 400;
+    g.gain.value = 0.0001;
+    o.type = 'sine'; o.frequency.value = 260;
+    og.gain.value = 0.0001;
+    src.connect(f); f.connect(g); g.connect(master);
+    o.connect(og); og.connect(master);
+    src.start(t); o.start(t);
+    fl = { src: src, f: f, g: g, o: o, og: og };
+  }
+  function flow(v, pos) {
+    if (!on()) { flowKill(); return; }
+    if (!ctx || ctx.state !== 'running') return;
+    v = Math.max(0, Math.min(1, v || 0));
+    if (!fl) { if (v < 0.02) return; flowStart(); }
+    var t = ctx.currentTime;
+    fl.g.gain.setTargetAtTime(Math.max(0.0001, v * 0.07), t, v > 0 ? 0.08 : 0.35);
+    fl.f.frequency.setTargetAtTime(350 + v * 1900, t, 0.12);
+    fl.og.gain.setTargetAtTime(Math.max(0.0001, v * 0.012), t, 0.15);
+    fl.o.frequency.setTargetAtTime(200 + (pos || 0) * 260, t, 0.2);
+    clearTimeout(flStop);
+    if (v < 0.02) flStop = setTimeout(flowKill, 1800);
+  }
+  return { play: play, on: on, pref: pref, set: set, ensure: ensure, flow: flow };
 })();
 </script>
 
@@ -685,7 +725,7 @@ function closeNotice(choice) {
   if (choice === "on") Snd.play("chime", 3);
 }
 sndBtn.addEventListener("click", () => {
-  if (Snd.on()) { Snd.set("off"); } else { Snd.set("on"); Snd.play("chime", 3); }
+  if (Snd.on()) { Snd.set("off"); Snd.flow(0); } else { Snd.set("on"); Snd.play("chime", 3); }
   paintSound();
 });
 soundYes.addEventListener("click", () => closeNotice("on"));
@@ -699,6 +739,23 @@ document.addEventListener("keydown", e => {
   }
 });
 paintSound();
+
+/* ---------- scroll flow sound ---------- */
+let flowV = 0, flowTimer = 0, lastSY = window.scrollY, lastST = performance.now();
+window.addEventListener("scroll", () => {
+  const y = window.scrollY, now = performance.now();
+  const range = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+  if (busyIdx >= 0 || !notice.hidden) { flowV = 0; Snd.flow(0, y / range); lastSY = y; lastST = now; return; }
+  const speed = Math.abs(y - lastSY) / Math.max(8, now - lastST);   // pixels per millisecond
+  lastSY = y; lastST = now;
+  const target = speed < 0.03 ? 0 : Math.min(1, 0.12 + speed / 2.4);
+  flowV = flowV * 0.6 + target * 0.4;
+  Snd.flow(flowV, y / range);
+  clearTimeout(flowTimer);
+  flowTimer = setTimeout(() => { flowV = 0; Snd.flow(0, y / range); }, 180);
+}, { passive: true });
+document.addEventListener("visibilitychange", () => { if (document.hidden) { flowV = 0; Snd.flow(0, 0); } });
+
 // Ask once, on a first visit, and not when returning from a world
 if (Snd.pref() === null && !new URLSearchParams(location.search).has("from")) {
   notice.hidden = false;
