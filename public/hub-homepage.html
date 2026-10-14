@@ -48,7 +48,7 @@
     letter-spacing: 0.04em;
     text-shadow: 0 0 28px rgba(124, 244, 255, 0.35);
   }
-  .pitch { margin: 12px auto 0; max-width: 520px; font-size: 16px; line-height: 1.45; color: #d6dcf2; }
+  .pitch { margin: 12px auto 0; max-width: 900px; font-size: 16px; line-height: 1.45; color: #d6dcf2; }
   .pitch small { display: block; margin-top: 6px; font-size: 13px; color: var(--muted); }
   .hint { margin-top: 10px; font-size: 13px; color: var(--muted); min-height: 18px; }
   .hint.active { color: var(--accent); }
@@ -493,8 +493,8 @@ function layout() {
 
   const cols = 3;
   const rows = Math.ceil(WORLDS.length / cols);
-  gridW = compact ? W - 58 : Math.min(W, 920);
-  gridX = compact ? 12 : (W - gridW) / 2;
+  gridW = compact ? W - 36 : Math.min(W, 920);
+  gridX = (W - gridW) / 2;
   topPad = compact ? 300 : 280;
   const cellW = gridW / cols;
   const radius = Math.max(28, Math.min(cellW * 0.19, 48));
@@ -702,7 +702,7 @@ function drawPortal(p, time) {
   ctx.shadowColor = "rgba(" + r + "," + g + "," + b + ",0.9)";
   ctx.shadowBlur = (12 + hover * 10) * blurScale;
   const words = p.name.split(" ");
-  const lines = compact && words.length > 1 && ctx.measureText(p.name).width > (W - 58) / 3 - 6
+  const lines = compact && words.length > 1 && ctx.measureText(p.name).width > (W - 36) / 3 - 6
     ? [words.slice(0, Math.ceil(words.length / 2)).join(" "), words.slice(Math.ceil(words.length / 2)).join(" ")]
     : [p.name];
   lines.forEach((ln, k) => ctx.fillText(ln, p.x, p.y - R * 1.5 - (lines.length - 1 - k) * (nameSize + 2) + bob));

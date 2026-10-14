@@ -61,10 +61,10 @@
   html.intro-lock, html.intro-lock body { overflow: hidden; }
   @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 
- body { padding: 64px 12px 70px; }
- .wrap { max-width: 980px; margin: 0 auto; display: grid; gap: 18px; grid-template-columns: 1fr; }
- @media (min-width: 820px) { .wrap { grid-template-columns: 340px 1fr; } }
- .cpu { position: relative; aspect-ratio: 1; max-width: 340px; width: 100%; margin: 0 auto; padding: 22px; background: #2a1a0b; border: 3px solid var(--accent); border-radius: 12px; transition: box-shadow .4s; }
+ body { padding: 64px 14px 80px; }
+ .wrap { max-width: 1120px; margin: 0 auto; display: grid; gap: 22px; grid-template-columns: 1fr; }
+ @media (min-width: 900px) { .wrap { grid-template-columns: 360px 1fr; align-items: start; } }
+ .cpu { position: relative; aspect-ratio: 1; max-width: 360px; width: 100%; margin: 12px auto 0; padding: 22px; background: #2a1a0b; border: 3px solid var(--accent); border-radius: 12px; transition: box-shadow .4s; }
  .cpu::before { content: ""; position: absolute; inset: -12px; border: 2px dashed var(--muted); border-radius: 16px; opacity: .6; }
  .cpu.hot { box-shadow: 0 0 60px 8px rgba(255,70,30,.7); border-color: #ff4b2b; }
  .die { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; height: 100%; }
@@ -74,28 +74,45 @@
  .core.sample { border-style: dashed; }
  .core.on { background: var(--accent); color: #140c05; }
  .hot .core { background: rgba(255,80,40,.25); border-color: #ff6a3d; }
- .gauge { display: flex; gap: 10px; align-items: center; margin: 22px auto 0; max-width: 340px; font-size: 12px; }
+ .panel { margin: 22px auto 0; max-width: 360px; border: 1px solid var(--muted); padding: 12px; font-size: 12px; background: rgba(255,157,77,.05); }
+ .panel h3 { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
+ .gauge { display: flex; gap: 10px; align-items: center; }
  .gauge .bar { flex: 1; height: 12px; border: 1px solid var(--accent); }
  .gauge .bar b { display: block; height: 100%; width: 22%; background: linear-gradient(90deg, #ffb347, #ff4b2b); transition: width .3s; }
- .fan { width: 34px; height: 34px; border: 2px solid var(--accent); border-radius: 50%; position: relative; animation: spin 3s linear infinite; }
+ .fan { width: 36px; height: 36px; border: 2px solid var(--accent); border-radius: 50%; position: relative; animation: spin 3s linear infinite; flex: none; }
  .fan::before, .fan::after { content: ""; position: absolute; left: 50%; top: 3px; bottom: 3px; width: 6px; margin-left: -3px; background: var(--accent); border-radius: 3px; }
  .fan::after { transform: rotate(90deg); }
- .hot ~ .gauge .fan, .fast .fan { animation-duration: .25s; }
+ .fan.fast { animation-duration: .2s; }
  @keyframes spin { to { transform: rotate(360deg); } }
- .mon { border: 10px solid #2b2b2b; border-radius: 14px; background: #0b0603; box-shadow: 0 0 0 2px var(--muted), 0 0 40px rgba(255,157,77,.15); min-height: 340px; display: flex; flex-direction: column; overflow: hidden; }
+ .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; text-align: center; }
+ .stats b { display: block; font-size: 18px; color: var(--accent); }
+ .stats span { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+ .mon { border: 10px solid #2b2b2b; border-radius: 14px; background: #0b0603; box-shadow: 0 0 0 2px var(--muted), 0 0 40px rgba(255,157,77,.15); height: min(640px, calc(100vh - 140px)); min-height: 520px; display: flex; flex-direction: column; overflow: hidden; }
  .mon.glitch { animation: gl .15s 8; }
  @keyframes gl { 0% { transform: translate(-3px, 0); filter: hue-rotate(40deg); } 50% { transform: translate(3px, 1px); filter: invert(.15); } 100% { transform: none; } }
- .mon .scr { flex: 1; padding: 18px; line-height: 1.55; font-size: 14px; background: repeating-linear-gradient(0deg, rgba(0,0,0,.18) 0 1px, transparent 1px 3px); white-space: pre-wrap; }
- .mon h2 { color: var(--accent); font-size: 22px; margin-bottom: 6px; }
+ .mbar { display: flex; justify-content: space-between; padding: 6px 14px; font-size: 11px; color: var(--muted); border-bottom: 1px solid #3a2410; }
+ .mon .scr { flex: 1; min-height: 0; overflow: auto; padding: 16px 18px; line-height: 1.55; font-size: 14px; background: repeating-linear-gradient(0deg, rgba(0,0,0,.18) 0 1px, transparent 1px 3px); white-space: pre-wrap; }
+ .mon h2 { color: var(--accent); font-size: 24px; margin-bottom: 6px; }
  .meter { height: 10px; border: 1px solid var(--accent); margin: 10px 0; }
  .meter b { display: block; height: 100%; background: var(--accent); width: 10%; transition: width .6s; }
- .mon button { margin-top: 12px; padding: 8px 14px; background: transparent; border: 1px solid var(--accent); color: var(--accent); }
+ .mon button { margin-top: 10px; padding: 8px 14px; background: transparent; border: 1px solid var(--accent); color: var(--accent); }
  .mon a { color: var(--accent); }
- .stand { width: 90px; height: 16px; background: #2b2b2b; margin: 0 auto; border-radius: 0 0 6px 6px; }
- .proc { margin-top: 12px; font-size: 12px; border-top: 1px dashed var(--muted); padding-top: 8px; }
- .proc div { display: flex; justify-content: space-between; gap: 8px; }
+ .kv { display: grid; grid-template-columns: 90px 1fr; gap: 4px 10px; margin: 10px 0; font-size: 13px; }
+ .kv dt { color: var(--muted); }
+ .smpbox { border: 2px dashed var(--accent); padding: 10px 12px; margin: 10px 0; font-size: 13px; }
+ .logh { padding: 4px 14px; font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); border-top: 1px solid #3a2410; }
+ .log { height: 120px; overflow: hidden; padding: 0 14px 8px; font-size: 11px; line-height: 1.5; color: #c79a6a; display: flex; flex-direction: column; justify-content: flex-end; }
+ .log .w { color: #ff6a3d; }
+ .stand { width: 120px; height: 18px; background: #2b2b2b; margin: 0 auto; border-radius: 0 0 6px 6px; }
+ .tm { max-width: 1120px; margin: 26px auto 0; border: 1px solid var(--muted); background: rgba(255,157,77,.04); padding: 14px; }
+ .tm h3 { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); margin-bottom: 10px; display: flex; justify-content: space-between; }
+ .tmgrid { display: grid; gap: 16px; grid-template-columns: 1fr; }
+ @media (min-width: 900px) { .tmgrid { grid-template-columns: 1.5fr 1fr; } }
+ .tm canvas { width: 100%; height: 180px; display: block; cursor: pointer; }
+ .tm .hist { height: 110px; }
+ .tmnote { font-size: 11px; color: var(--muted); margin-top: 6px; }
 
-  @media (max-width: 700px) { body { padding-right: 38px !important; } }
+  @media (max-width: 700px) { body { padding-top: 104px !important; } }
 </style>
 </head>
 <body>
@@ -107,11 +124,16 @@
 <div class="dlg" id="dlg"><div class="card" id="dlgcard"></div></div>
 
 <div class="wrap">
- <div><div class="cpu" id="cpu"><div class="die" id="die"></div></div>
-  <div class="gauge"><div class="fan" id="fan"></div><div class="bar"><b id="temp"></b></div><span id="deg">42C</span></div>
-  <p style="font-size:12px;color:var(--muted);text-align:center;margin-top:12px">Solid cores are real projects. Dashed outline marks sample content. Yours goes here.</p></div>
- <div><div class="mon" id="mon"><div class="scr" id="scr"></div></div><div class="stand"></div></div>
+ <div>
+  <div class="cpu" id="cpu"><div class="die" id="die"></div></div>
+  <div class="panel"><h3>Cooling</h3><div class="gauge"><div class="fan" id="fan"></div><div class="bar"><b id="temp"></b></div><span id="deg">42C</span></div>
+   <div class="stats"><div><b id="ghz">3.2</b><span>GHz</span></div><div><b id="pow">45</b><span>Watts</span></div><div><b id="thr">28</b><span>Threads</span></div></div></div>
+  <p style="font-size:12px;color:var(--muted);text-align:center;margin-top:12px">Solid cores are real projects. Dashed outline marks sample content. Yours goes here.</p>
+ </div>
+ <div><div class="mon" id="mon"><div class="mbar"><span id="mtitle">monitor-01</span><span id="mclock"></span></div><div class="scr" id="scr"></div><div class="logh">Live core log</div><div class="log" id="log"></div></div><div class="stand"></div></div>
 </div>
+<section class="tm"><h3><span>Task manager: core load</span><span id="tmtot">total 0%</span></h3>
+ <div class="tmgrid"><div><canvas id="bars" aria-label="Core load bars. Select a bar to load that core."></canvas></div><div><canvas id="hist" class="hist" aria-hidden="true"></canvas><p class="tmnote">Total load, last two minutes. Dashed bars are sample cores. Overclock to watch it climb.</p></div></div></section>
 <div class="tools"><button type="button" id="oc">Overclock</button><button type="button" id="ps">Processes</button></div>
 
 <script>
@@ -221,46 +243,117 @@ var PROJECTS = [
   }
   window.WORLD = { PROJECTS: PROJECTS, openDetail: openDetail, blip: blip, $: $, $$: $$, esc: esc, reduce: reduce, EMAIL: EMAIL, NAME: NAME };
 
-  var die = $("#die"), scr = $("#scr"), cpu = $("#cpu"), mon = $("#mon"), booted = false, hot = false, cur = -1;
+  var die = $("#die"), scr = $("#scr"), cpu = $("#cpu"), mon = $("#mon"), log = $("#log"), booted = false, hot = false, cur = -1, bootTimer = null;
+  var base = PROJECTS.map(function (p, i) { return p.k === "Real" ? 55 + (i * 9) % 35 : 18 + (i * 13) % 28; });
+  var load = base.slice();
   die.innerHTML = PROJECTS.map(function (p, i) {
-    return '<button type="button" class="core ' + (p.k === "Sample" ? "sample" : "") + '" data-i="' + i + '"><i></i><span>' + esc(p.n) + '</span></button>';
+    return '<button type="button" class="core ' + (p.k === "Sample" ? "sample" : "") + '" data-i="' + i + '" aria-label="Core ' + (i + 1) + ': ' + esc(p.n) + '"><i></i><span>' + esc(p.n) + '</span></button>';
   }).join("");
-  var cores = $$(".core", die), load = PROJECTS.map(function (p, i) { return p.k === "Real" ? 55 + (i * 9) % 40 : 20 + (i * 13) % 30; });
+  var cores = $$(".core", die);
+  function pad2(n) { return (n < 10 ? "0" : "") + n; }
+  function addLog(t, warn) {
+    var d = document.createElement("div"); if (warn) d.className = "w"; d.textContent = t; log.appendChild(d);
+    while (log.children.length > 12) log.removeChild(log.firstChild);
+  }
+  function coreCard(i) {
+    var p = PROJECTS[i], sample = p.k === "Sample";
+    return '<h2>' + esc(p.n) + '</h2><div class="meter"><b id="m"></b></div>' +
+      '<dl class="kv"><dt>Core</dt><dd>' + pad2(i + 1) + ' of ' + PROJECTS.length + '</dd><dt>Type</dt><dd>' + esc(p.t) + '</dd><dt>Status</dt><dd>' + (sample ? "SAMPLE (dashed outline)" : "Real project") + '</dd><dt>Link</dt><dd>' +
+      (p.u ? '<a href="' + esc(p.u) + '" target="_blank" rel="noopener">' + esc(p.u.replace("https://", "")) + '</a>' : (sample ? "none, this is a sample" : "private, no public link yet")) + '</dd></dl>' +
+      '<p>' + esc(p.d) + '</p>' +
+      (sample ? '<div class="smpbox">Sample content. Yours goes here.</div>' : '') +
+      '<button type="button" id="more">Open details</button>';
+  }
   function show(i) {
     if (!booted) return;
-    var p = PROJECTS[i]; cur = i;
+    cur = i; clearTimeout(bootTimer);
+    var p = PROJECTS[i];
     cores.forEach(function (c, j) { c.classList.toggle("on", j === i); });
-    scr.innerHTML = '<h2>' + esc(p.n) + '</h2><div>' + esc(p.t) + ' | <b>' + (p.k === "Sample" ? "SAMPLE (dashed, invented)" : "Real") + '</b></div><div class="meter"><b id="m"></b></div><p>' + esc(p.d) + '</p>' +
-      '<button type="button" id="more">Open details</button>';
-    setTimeout(function () { var m = $("#m"); if (m) m.style.width = load[i] + "%"; }, 30);
-    $("#more").addEventListener("click", function () { openDetail(p); });
-    blip(300 + i * 40, 0.08, "square");
+    $("#mtitle").textContent = "core-" + pad2(i + 1) + " / " + p.n.toLowerCase().replace(/ /g, "-");
+    blip(300 + i * 40, 0.08, "square"); addLog("[core " + pad2(i + 1) + "] select " + p.n);
+    var lines = ["> loading core " + pad2(i + 1) + " ...", "> mounting " + p.n, "> status: " + (p.k === "Sample" ? "SAMPLE" : "real") + " ... ok"], k = 0;
+    scr.textContent = "";
+    (function step() {
+      scr.textContent = lines.slice(0, k + 1).join("\n"); blip(900 + k * 80, 0.02, "square"); k++;
+      if (k < lines.length) bootTimer = setTimeout(step, 170);
+      else bootTimer = setTimeout(function () {
+        scr.innerHTML = coreCard(i);
+        setTimeout(function () { var m = $("#m"); if (m) m.style.width = Math.round(load[i]) + "%"; }, 30);
+        $("#more").addEventListener("click", function () { openDetail(p); });
+      }, 200);
+    })();
+    drawBars();
   }
   die.addEventListener("click", function (e) { var c = e.target.closest(".core"); if (c) show(+c.getAttribute("data-i")); });
-  var tick = setInterval(function () { cores.forEach(function (c, i) { c.firstChild.style.height = (hot ? 70 + Math.random() * 30 : 10 + Math.random() * 60) + "%"; }); }, 800);
-  function setTemp(t) { $("#temp").style.width = Math.min(100, (t - 30) * 1.4) + "%"; $("#deg").textContent = Math.round(t) + "C"; }
-  var temp = 42;
-  setInterval(function () { temp += ((hot ? 96 : 42 + Math.random() * 6) - temp) * 0.15; setTemp(temp); }, 250);
-  /* overclock: the whole machine reacts */
+
+  /* task manager: bars per core and a history line */
+  var bars = $("#bars"), bg = bars.getContext("2d"), hist = $("#hist"), hg = hist.getContext("2d"), H = [], barHit = [];
+  function fit(c) { var r = c.getBoundingClientRect(), d = Math.min(window.devicePixelRatio || 1, 2); c.width = Math.round(r.width * d); c.height = Math.round(r.height * d); c.getContext("2d").setTransform(d, 0, 0, d, 0, 0); return r; }
+  function drawBars() {
+    var r = bars.getBoundingClientRect(); if (!r.width) return; if (bars.width < 10) fit(bars);
+    var w = r.width, h = r.height, n = PROJECTS.length, gap = 6, bw = (w - gap * (n - 1)) / n;
+    bg.clearRect(0, 0, w, h); barHit = [];
+    PROJECTS.forEach(function (p, i) {
+      var x = i * (bw + gap), bh = Math.max(2, (h - 24) * load[i] / 100), y = h - 18 - bh, sample = p.k === "Sample";
+      bg.fillStyle = i === cur ? "#ff9d4d" : (hot ? "rgba(255,90,50,.75)" : "rgba(255,157,77,.35)");
+      bg.fillRect(x, y, bw, bh);
+      bg.strokeStyle = "#ff9d4d"; bg.lineWidth = 1.5; bg.setLineDash(sample ? [4, 3] : []); bg.strokeRect(x + 0.5, y + 0.5, bw - 1, bh - 1);
+      bg.setLineDash([]); bg.fillStyle = "#a2682f"; bg.font = "10px monospace"; bg.textAlign = "center"; bg.fillText(pad2(i + 1), x + bw / 2, h - 5);
+      barHit.push([x, x + bw]);
+    });
+  }
+  function drawHist() {
+    var r = hist.getBoundingClientRect(); if (!r.width) return; if (hist.width < 10) fit(hist);
+    var w = r.width, h = r.height; hg.clearRect(0, 0, w, h);
+    hg.strokeStyle = "rgba(162,104,47,.4)"; hg.lineWidth = 1; for (var g = 1; g < 4; g++) { hg.beginPath(); hg.moveTo(0, h * g / 4); hg.lineTo(w, h * g / 4); hg.stroke(); }
+    hg.strokeStyle = hot ? "#ff4b2b" : "#ff9d4d"; hg.lineWidth = 2; hg.beginPath();
+    H.forEach(function (v, i) { var x = i / 119 * w, y = h - 4 - (h - 8) * v / 100; if (i) hg.lineTo(x, y); else hg.moveTo(x, y); }); hg.stroke();
+  }
+  bars.addEventListener("click", function (e) { var r = bars.getBoundingClientRect(), x = e.clientX - r.left; for (var i = 0; i < barHit.length; i++) if (x >= barHit[i][0] - 3 && x <= barHit[i][1] + 3) { show(i); return; } });
+  addEventListener("resize", function () { fit(bars); fit(hist); drawBars(); drawHist(); });
+
+  /* live machine: loads, clock speed, temperature, log lines */
+  var temp = 42, ghz = 3.2, EVENTS = ["cache flush ok", "thread sync ok", "task done", "idle 3 ms", "branch predict 98%", "interrupt handled"];
+  setInterval(function () {
+    var tot = 0;
+    for (var i = 0; i < load.length; i++) { var t = hot ? 88 + Math.random() * 12 : base[i] + (Math.random() - 0.5) * 18; load[i] += (Math.max(3, Math.min(100, t)) - load[i]) * 0.5; tot += load[i]; }
+    tot /= load.length; H.push(tot); if (H.length > 120) H.shift();
+    temp += ((hot ? 96 : 40 + tot * 0.25) - temp) * 0.15; ghz += ((hot ? 5.6 : 3.0 + tot / 100 * 1.2) - ghz) * 0.2;
+    cores.forEach(function (c, i) { c.firstChild.style.height = load[i] + "%"; });
+    $("#temp").style.width = Math.min(100, (temp - 30) * 1.4) + "%"; $("#deg").textContent = Math.round(temp) + "C";
+    $("#ghz").textContent = ghz.toFixed(1); $("#pow").textContent = Math.round(25 + ghz * ghz * 2.2 + tot * 0.2); $("#thr").textContent = hot ? 56 : 28;
+    $("#fan").classList.toggle("fast", hot || temp > 70); $("#tmtot").textContent = "total " + Math.round(tot) + "%";
+    drawBars(); drawHist();
+  }, 700);
+  setInterval(function () {
+    if (!booted) return; var i = Math.floor(Math.random() * PROJECTS.length);
+    if (hot && Math.random() < 0.5) addLog("[core " + pad2(i + 1) + "] THROTTLE WARNING " + Math.round(temp) + "C", true);
+    else addLog("[core " + pad2(i + 1) + "] " + PROJECTS[i].n + ": " + EVENTS[Math.floor(Math.random() * EVENTS.length)]);
+  }, 900);
+  setInterval(function () { $("#mclock").textContent = new Date().toTimeString().slice(0, 8); }, 1000);
+
   $("#oc").addEventListener("click", function () {
     if (hot || !booted) return; hot = true;
     cpu.classList.add("hot"); mon.classList.add("glitch"); $("#oc").classList.add("on"); $("#oc").textContent = "Overclocked";
     for (var k = 0; k < 6; k++) setTimeout(function (n) { blip(180 + n * 90, 0.18, "sawtooth"); }, k * 120, k);
-    scr.innerHTML = '<h2>OVERCLOCK</h2><p>All cores at 100 percent. Fan at full speed.\nThis is the same energy a client portfolio can have: fast, a little dangerous and memorable.</p><div class="meter"><b style="width:100%"></b></div>';
+    clearTimeout(bootTimer); addLog("OVERCLOCK engaged: 5.6 GHz", true);
+    scr.innerHTML = '<h2>OVERCLOCK</h2><p>All cores at full load. Fan at full speed. Clock climbing to 5.6 GHz.\nThis is the same energy a client portfolio can have: fast, a little dangerous and memorable.</p><div class="meter"><b style="width:100%"></b></div>';
     setTimeout(function () { mon.classList.remove("glitch"); }, 1300);
-    setTimeout(function () { hot = false; cpu.classList.remove("hot"); $("#oc").classList.remove("on"); $("#oc").textContent = "Overclock"; if (cur >= 0) show(cur); else scr.innerHTML = '<h2>Cooled down</h2><p>Pick a core to load a project.</p>'; blip(300, 0.3, "sine"); }, 4500);
+    setTimeout(function () { hot = false; cpu.classList.remove("hot"); $("#oc").classList.remove("on"); $("#oc").textContent = "Overclock"; addLog("cooled down, clock back to normal"); if (cur >= 0) show(cur); else scr.innerHTML = '<h2>Cooled down</h2><p>Select a core on the chip or a bar below to load a project.</p>'; blip(300, 0.3, "sine"); }, 4500);
   });
   $("#ps").addEventListener("click", function () {
-    if (!booted) return; blip(500, 0.08);
+    if (!booted) return; blip(500, 0.08); clearTimeout(bootTimer);
     var order = PROJECTS.map(function (p, i) { return i; }).sort(function (a, b) { return load[b] - load[a]; });
-    scr.innerHTML = '<h2>Processes</h2><div class="proc">' + order.map(function (i) { return '<div><span>' + (PROJECTS[i].k === "Sample" ? "(sample) " : "") + esc(PROJECTS[i].n) + '</span><span>' + load[i] + '%</span></div>'; }).join("") + '</div>';
+    scr.innerHTML = '<h2>Processes</h2><dl class="kv" style="grid-template-columns:1fr 60px">' + order.map(function (i) { return '<dt style="color:var(--fg)">' + (PROJECTS[i].k === "Sample" ? "(sample) " : "") + esc(PROJECTS[i].n) + '</dt><dd>' + Math.round(load[i]) + '%</dd>'; }).join("") + '</dl>';
+    cur = -1; cores.forEach(function (c) { c.classList.remove("on"); }); $("#mtitle").textContent = "task-list";
   });
   window.WORLD_START = function () {
-    var lines = ["POST ........ OK", "Cores ....... " + PROJECTS.length + " found", "Real ........ " + PROJECTS.filter(function (p) { return p.k === "Real"; }).length, "Samples ..... " + PROJECTS.filter(function (p) { return p.k === "Sample"; }).length + " (dashed)", "", "Ready."], i = 0;
+    fit(bars); fit(hist); drawBars(); drawHist();
+    var lines = ["POST ........ OK", "Cores ....... " + PROJECTS.length + " found", "Real ........ " + PROJECTS.filter(function (p) { return p.k === "Real"; }).length, "Samples ..... " + PROJECTS.filter(function (p) { return p.k === "Sample"; }).length + " (dashed outline)", "", "Ready."], i = 0;
     (function step() {
       scr.textContent = lines.slice(0, i + 1).join("\n"); blip(1000 + i * 60, 0.03, "square"); i++;
       if (i < lines.length) setTimeout(step, 260);
-      else setTimeout(function () { booted = true; scr.innerHTML = '<h2>' + NAME + '</h2><p>Developer. Pick a core on the chip to load a project on this monitor. Try Overclock.</p><p>Contact: <a href="mailto:' + EMAIL + '">' + EMAIL + '</a></p>'; }, 400);
+      else setTimeout(function () { booted = true; scr.innerHTML = '<h2>' + NAME + '</h2><p>Developer. Select a core on the chip, or a bar in the task manager below, to load a project on this monitor. Try Overclock.</p><p>Contact: <a href="mailto:' + EMAIL + '">' + EMAIL + '</a></p>'; addLog("system ready"); }, 400);
     })();
   };
 

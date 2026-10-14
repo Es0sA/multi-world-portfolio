@@ -68,7 +68,7 @@
  .hint { position: fixed; z-index: 15; left: 0; right: 0; bottom: 70px; padding: 0 50px; text-align: center; font-size: 13px; color: var(--muted); pointer-events: none; }
  .mail { position: fixed; z-index: 30; left: 12px; top: 58px; font-size: 12px; }
 
-  @media (max-width: 700px) { body { padding-right: 38px !important; } }
+  @media (max-width: 700px) { body { padding-top: 104px !important; } }
 </style>
 </head>
 <body>
@@ -227,10 +227,10 @@ var PROJECTS = [
   function frame(t) {
     g.fillStyle = "rgba(12,6,20,.012)"; g.fillRect(0, 0, W, H);
     stars.forEach(function (s) { g.fillStyle = "rgba(255,255,255," + (0.3 + 0.5 * Math.abs(Math.sin(t / 900 + s[0]))) + ")"; g.fillRect(s[0], s[1], s[2], s[2]); });
-    var cx = (W - (W < 700 ? 38 : 0)) / 2, cy = 80 + (H - 240) / 2;
+    var cx = W / 2, cy = 100 + (H - 260) / 2;
     orbs.forEach(function (o) {
       o.a += o.sp * 16;
-      var rx = Math.max(10, (W - (W < 700 ? 38 : 0)) / 2 - o.r - 6), ry = Math.max(10, (H - 240) / 2 - o.r), f = o.ring;
+      var rx = Math.max(10, W / 2 - o.r - 6), ry = Math.max(10, (H - 260) / 2 - o.r), f = o.ring;
       var x = cx + Math.cos(o.a) * rx * f, y = cy + Math.sin(o.a) * ry * f;
       o.el.style.left = (x - o.r) + "px"; o.el.style.top = (y - o.r) + "px"; o.el.dataset.x = x; o.el.dataset.y = y;
       if (Math.random() < 0.03) { g.fillStyle = "hsla(" + o.h + ",90%,60%,.12)"; g.beginPath(); g.arc(x, y, o.r * 0.8, 0, 6.28); g.fill(); }
