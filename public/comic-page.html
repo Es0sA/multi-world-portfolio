@@ -146,7 +146,7 @@ a { color: inherit; }
   display: grid; grid-template-columns: repeat(12, 1fr);
   gap: clamp(16px, 2.6vw, 32px);
 }
-.panel {
+.panel { outline: 3px dashed rgba(255,255,255,.65); outline-offset: 5px;
   position: relative; overflow: hidden; cursor: pointer;
   grid-column: span var(--span, 6);
   height: max(230px, min(calc(var(--h, 30) * 1vw), calc(var(--h, 30) * 11.2px)));
@@ -315,7 +315,7 @@ html.rm .panel.in .sfx { animation: none !important; transform: rotate(var(--sr,
 <div id="world">
   <header class="bar">
     <a class="return" href="hub-homepage.html">Return to hub</a>
-    <div class="who"><b>Esosa Osaretin</b>Illustrator</div>
+    <div class="who"><b>Esosa Osaretin</b>Illustrator and Comic Artist</div>
   </header>
 
   <section class="cover" aria-labelledby="title">
@@ -328,6 +328,7 @@ html.rm .panel.in .sfx { animation: none !important; transform: rotate(var(--sr,
     <div class="cue bubble">Scroll to turn the page.</div>
   </section>
 
+  <p class="smp-legend" style="text-align:center;margin:0 0 14px;color:#fff"><span class="smp-tag">Sample</span>Dashed outline marks sample content. Yours goes here.</p>
   <main class="wall" id="wall" aria-label="Projects"></main>
 
   <section class="end">
@@ -652,7 +653,7 @@ PROJECTS.forEach(function (p, i) {
     '<div class="cap">' + esc(p.caption) + '</div>' +
     '<div class="bubble ' + esc(p.bpos) + '">' + esc(p.bubble) + '</div>' +
     '<div class="sfx" aria-hidden="true">' + esc(p.sfx) + '</div>' +
-    '<div class="plate"><b>' + esc(p.title) + '</b><span>' + esc(p.category) + ' | ' + esc(p.year) + '</span></div>';
+    '<div class="plate"><b>' + esc(p.title) + '</b><span>' + esc(p.category) + ' | ' + esc(p.year) + ' <i class="smp-tag" style="font-style:normal">Sample</i></span></div>';
   wall.appendChild(el);
 });
 
@@ -882,5 +883,6 @@ viewer.addEventListener('touchend', function (e) {
   if (Math.abs(dx) > 60) step(dx < 0 ? 1 : -1);
 }, { passive: true });
 </script>
+<script src="portfolio-shared.js"></script>
 </body>
 </html>

@@ -28,6 +28,12 @@
   .who b { display: block; font-size: 14px; }
   .tag { display: inline-block; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 2px 7px; border: 1px solid currentColor; }
   .tag.sample { opacity: .75; }
+  .tools { position: fixed; left: 12px; bottom: 12px; z-index: 60; display: flex; gap: 6px; flex-wrap: wrap; max-width: calc(100vw - 56px); }
+  .tools button { padding: 9px 12px; font-size: 13px; background: var(--bg); color: var(--fg); border: 1px solid var(--accent); border-radius: 6px; }
+  .tools button.on { background: var(--accent); color: var(--bg); }
+  .tools .sw { width: 30px; height: 30px; padding: 0; border-radius: 50%; border: 2px solid var(--fg); }
+  .tools .sw.on { outline: 3px solid var(--accent); outline-offset: 1px; }
+  .smp { border-style: dashed !important; }
   /* detail dialog */
   .dlg { position: fixed; inset: 0; z-index: 200; display: none; align-items: center; justify-content: center; padding: 16px; background: rgba(0,0,0,.6); }
   .dlg.on { display: flex; }
@@ -68,21 +74,27 @@
  .row:hover .n, .row:hover .m, .row:focus-visible .n, .row:focus-visible .m, .row.hot .n, .row.hot .m { color: #eceae4; }
  .row:hover .n { letter-spacing: .01em; }
  .row.sample .n { font-style: italic; font-weight: 400; }
- .end { border-top: 2px solid #111; padding-top: 14px; margin-top: 0; }
+ .end { border-top: 2px solid #111; padding-top: 14px; margin-top: 0; padding-bottom: 70px; }
+ .row.sample { border-top: 2px dashed #111; }
+ .row.sample .m::after { content: " (sample)"; }
+ canvas#paper { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; touch-action: none; }
+ canvas#paper.on { pointer-events: auto; z-index: 55; cursor: crosshair; }
 
+  @media (max-width: 700px) { body { padding-right: 38px !important; } }
 </style>
 </head>
 <body>
 <div class="iris" id="iris" aria-hidden="true"></div>
 <noscript><p style="padding:120px 24px;text-align:center">This world needs JavaScript turned on. <a href="hub-homepage.html">Return to the hub</a>.</p></noscript>
 <a class="return" href="hub-homepage.html" title="Return to the hub">Return to hub</a>
-<div class="who"><b>Esosa Osaretin</b>Illustrator</div>
+<div class="who"><b>Esosa Osaretin</b>Illustrator and Comic Artist</div>
 <div class="intro" id="intro"><h1>Ink Dimension</h1><div>Black ink on paper. Nothing else.</div><div class="tap">Tap to open</div></div>
 <div class="dlg" id="dlg"><div class="card" id="dlgcard"></div></div>
 
-<canvas id="ink"></canvas>
+<canvas id="ink"></canvas><canvas id="paper"></canvas>
+<div class="tools"><button type="button" id="dip">Dip the pen</button><button type="button" id="splat">Splatter</button><button type="button" id="dry">Clean the page</button></div>
 <div class="list"><h1 class="big">Ink Dimension</h1>
-<p class="lead">Real work is set in bold. Samples are set in italics and are invented to show how your work could be drawn.</p>
+<p class="lead">Real work is set in bold. Italic rows with a dashed rule are samples, invented to show where your work goes. Dip the pen to write on the page.</p>
 <div id="rows"></div><div class="end">Contact: <a href="mailto:esosaosaretin@gmail.com">esosaosaretin@gmail.com</a></div></div>
 
 <script>
@@ -213,6 +225,24 @@ var PROJECTS = [
     });
     requestAnimationFrame(frame);
   }
+  /* dip pen: variable width ink that reacts to speed, with splatter and a clean page button */
+  var pp = $("#paper"), pc = pp.getContext("2d"), draw = false, lp = null, lw = 4;
+  function psize() { var img = pc.getImageData(0, 0, pp.width, pp.height); pp.width = innerWidth; pp.height = innerHeight; try { pc.putImageData(img, 0, 0); } catch (e) {} }
+  pp.width = innerWidth; pp.height = innerHeight; addEventListener("resize", psize);
+  $("#dip").addEventListener("click", function () { draw = !draw; pp.classList.toggle("on", draw); this.classList.toggle("on", draw); this.textContent = draw ? "Put the pen down" : "Dip the pen"; blip(240, 0.12, "triangle"); });
+  pp.addEventListener("pointerdown", function (e) { lp = [e.clientX, e.clientY, performance.now()]; lw = 4; pp.setPointerCapture(e.pointerId); pc.fillStyle = "#111"; pc.beginPath(); pc.arc(e.clientX, e.clientY, 4, 0, 6.28); pc.fill(); });
+  pp.addEventListener("pointermove", function (e) {
+    if (!lp) return; var now = performance.now(), dx = e.clientX - lp[0], dy = e.clientY - lp[1], sp = Math.hypot(dx, dy) / Math.max(1, now - lp[2]);
+    var target = Math.max(1.5, 11 - sp * 7); lw += (target - lw) * 0.3;
+    pc.strokeStyle = "#111"; pc.lineCap = "round"; pc.lineWidth = lw; pc.beginPath(); pc.moveTo(lp[0], lp[1]); pc.lineTo(e.clientX, e.clientY); pc.stroke(); lp = [e.clientX, e.clientY, now];
+  });
+  pp.addEventListener("pointerup", function () { lp = null; });
+  $("#splat").addEventListener("click", function () {
+    blip(140, 0.3, "sawtooth");
+    for (var k = 0; k < 40; k++) { var a = Math.random() * 6.28, d = Math.random() * Math.min(innerWidth, innerHeight) * 0.4, x = innerWidth / 2 + Math.cos(a) * d, y = innerHeight / 2 + Math.sin(a) * d, r = 1 + Math.random() * (14 - d / 40); pc.fillStyle = "#111"; pc.beginPath(); pc.arc(x, y, Math.max(1, r), 0, 6.28); pc.fill(); }
+    pp.style.zIndex = 1;
+  });
+  $("#dry").addEventListener("click", function () { pc.clearRect(0, 0, pp.width, pp.height); blots = []; blip(200, 0.15); });
   window.WORLD_START = function () { for (var i = 0; i < 6; i++) drop(Math.random() * innerWidth, Math.random() * innerHeight); requestAnimationFrame(frame); };
 
   if (reduce) { intro.remove(); root.classList.remove("portal-in"); start(); }
@@ -229,5 +259,6 @@ var PROJECTS = [
   }
 })();
 </script>
+<script src="portfolio-shared.js"></script>
 </body>
 </html>

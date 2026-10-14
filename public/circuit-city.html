@@ -127,7 +127,7 @@ button { font: inherit; color: inherit; }
 #parts li b { display: block; font: 600 14px var(--sans); }
 #parts li span { display: block; font: 12px var(--sans); color: var(--dim); }
 #parts li em { font: normal 11px var(--mono); color: var(--dim); letter-spacing: 0.08em; text-align: right; }
-#parts li em.s { color: var(--gold); }
+#parts li em.s { color: var(--gold); border: 1px dashed var(--gold); padding: 1px 5px; }
 #fallback { position: absolute; z-index: 7; left: 14px; right: 14px; top: 70px; padding: 14px; font: 13px/1.5 var(--mono); background: var(--panel); border: 1px solid var(--line); display: none; }
 #fallback.show { display: block; }
 
@@ -152,7 +152,7 @@ button { font: inherit; color: inherit; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 0; padding: 0; list-style: none; }
 .chips li { padding: 5px 11px; border: 1px solid var(--line); font: 12px var(--mono); letter-spacing: 0.06em; }
 .chips li.real { border-color: var(--cy); color: var(--cy); }
-.chips li.sample { border-color: var(--gold); color: var(--gold); }
+.chips li.sample { border-color: var(--gold); border-style: dashed; color: var(--gold); }
 .note { margin: 16px 0 0; padding: 10px 14px; max-width: 42em; font-size: 13px; line-height: 1.5; border-left: 3px solid var(--gold); background: rgba(232, 194, 90, 0.08); color: #f3deaa; }
 .sec { margin-top: 32px; }
 .sec h3 { margin: 0 0 12px; font: 600 12px var(--mono); letter-spacing: 0.18em; text-transform: uppercase; color: var(--cy); }
@@ -215,7 +215,7 @@ html.iris-on #iris { display: block; }
 
   <header class="bar">
     <a class="return" href="hub-homepage.html">Return to hub</a>
-    <div class="who"><b>Esosa Osaretin</b>Software Developer</div>
+    <div class="who"><b>Esosa Osaretin</b>Developer</div>
   </header>
 
   <div class="hint" id="hint"></div>
@@ -235,6 +235,7 @@ html.iris-on #iris { display: block; }
 
   <section id="parts" aria-label="Parts list">
     <h2>Parts list <button type="button" id="partsClose">Close</button></h2>
+    <p class="smp-legend" style="margin:0 0 10px;color:var(--gold)"><span class="smp-tag">Sample</span>Dashed outline marks sample content. Yours goes here. Real projects are solid.</p>
     <ul id="partsUl"></ul>
   </section>
 
@@ -921,7 +922,7 @@ function ihsTexture() {
     g.strokeStyle = 'rgba(40,50,70,0.55)'; g.lineWidth = 4; g.strokeRect(30, 30, 452, 452);
     g.fillStyle = 'rgba(30,38,56,0.85)'; g.textAlign = 'center'; g.textBaseline = 'middle';
     g.font = '700 84px ui-monospace, Menlo, Consolas, monospace'; g.fillText('CORE', 256, 220);
-    g.font = '500 30px ui-monospace, Menlo, Consolas, monospace'; g.fillText('ESOSA OSARETIN', 256, 296);
+    g.font = '500 30px ui-monospace, Menlo, Consolas, monospace'; g.fillText('YOUR NAME', 256, 296);
     g.font = '500 22px ui-monospace, Menlo, Consolas, monospace'; g.fillText('CPU-0001  /  PORTFOLIO', 256, 352);
     g.fillStyle = 'rgba(30,38,56,0.8)'; g.beginPath(); g.moveTo(40, 40); g.lineTo(90, 40); g.lineTo(40, 90); g.fill();
   });
@@ -2087,5 +2088,6 @@ if (fromPortal && !reduce) {
 } else if (fromPortal) { clearIris(); playCurtain(); }
 else if (!reduce) { playCurtain(); }
 </script>
+<script src="portfolio-shared.js"></script>
 </body>
 </html>

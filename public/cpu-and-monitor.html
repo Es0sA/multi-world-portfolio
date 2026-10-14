@@ -28,6 +28,12 @@
   .who b { display: block; font-size: 14px; }
   .tag { display: inline-block; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 2px 7px; border: 1px solid currentColor; }
   .tag.sample { opacity: .75; }
+  .tools { position: fixed; left: 12px; bottom: 12px; z-index: 60; display: flex; gap: 6px; flex-wrap: wrap; max-width: calc(100vw - 56px); }
+  .tools button { padding: 9px 12px; font-size: 13px; background: var(--bg); color: var(--fg); border: 1px solid var(--accent); border-radius: 6px; }
+  .tools button.on { background: var(--accent); color: var(--bg); }
+  .tools .sw { width: 30px; height: 30px; padding: 0; border-radius: 50%; border: 2px solid var(--fg); }
+  .tools .sw.on { outline: 3px solid var(--accent); outline-offset: 1px; }
+  .smp { border-style: dashed !important; }
   /* detail dialog */
   .dlg { position: fixed; inset: 0; z-index: 200; display: none; align-items: center; justify-content: center; padding: 16px; background: rgba(0,0,0,.6); }
   .dlg.on { display: flex; }
@@ -55,27 +61,41 @@
   html.intro-lock, html.intro-lock body { overflow: hidden; }
   @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 
- body { padding: 64px 12px 24px; }
+ body { padding: 64px 12px 70px; }
  .wrap { max-width: 980px; margin: 0 auto; display: grid; gap: 18px; grid-template-columns: 1fr; }
  @media (min-width: 820px) { .wrap { grid-template-columns: 340px 1fr; } }
- .cpu { position: relative; aspect-ratio: 1; max-width: 340px; width: 100%; margin: 0 auto; padding: 22px; background: #2a1a0b; border: 3px solid var(--accent); border-radius: 12px; }
+ .cpu { position: relative; aspect-ratio: 1; max-width: 340px; width: 100%; margin: 0 auto; padding: 22px; background: #2a1a0b; border: 3px solid var(--accent); border-radius: 12px; transition: box-shadow .4s; }
  .cpu::before { content: ""; position: absolute; inset: -12px; border: 2px dashed var(--muted); border-radius: 16px; opacity: .6; }
+ .cpu.hot { box-shadow: 0 0 60px 8px rgba(255,70,30,.7); border-color: #ff4b2b; }
  .die { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; height: 100%; }
  .core { border: 1px solid var(--accent); background: rgba(255,157,77,.08); font-size: 10px; display: flex; flex-direction: column; justify-content: flex-end; padding: 4px; text-align: left; position: relative; overflow: hidden; }
  .core i { position: absolute; left: 0; bottom: 0; width: 100%; background: rgba(255,157,77,.35); height: 20%; transition: height .5s; }
  .core span { position: relative; line-height: 1.1; }
  .core.sample { border-style: dashed; }
  .core.on { background: var(--accent); color: #140c05; }
- .mon { border: 10px solid #2b2b2b; border-radius: 14px; background: #0b0603; box-shadow: 0 0 0 2px var(--muted), 0 0 40px rgba(255,157,77,.15); min-height: 320px; display: flex; flex-direction: column; }
- .mon .scr { flex: 1; padding: 18px; line-height: 1.55; font-size: 14px; background: repeating-linear-gradient(0deg, rgba(0,0,0,.18) 0 1px, transparent 1px 3px); }
+ .hot .core { background: rgba(255,80,40,.25); border-color: #ff6a3d; }
+ .gauge { display: flex; gap: 10px; align-items: center; margin: 22px auto 0; max-width: 340px; font-size: 12px; }
+ .gauge .bar { flex: 1; height: 12px; border: 1px solid var(--accent); }
+ .gauge .bar b { display: block; height: 100%; width: 22%; background: linear-gradient(90deg, #ffb347, #ff4b2b); transition: width .3s; }
+ .fan { width: 34px; height: 34px; border: 2px solid var(--accent); border-radius: 50%; position: relative; animation: spin 3s linear infinite; }
+ .fan::before, .fan::after { content: ""; position: absolute; left: 50%; top: 3px; bottom: 3px; width: 6px; margin-left: -3px; background: var(--accent); border-radius: 3px; }
+ .fan::after { transform: rotate(90deg); }
+ .hot ~ .gauge .fan, .fast .fan { animation-duration: .25s; }
+ @keyframes spin { to { transform: rotate(360deg); } }
+ .mon { border: 10px solid #2b2b2b; border-radius: 14px; background: #0b0603; box-shadow: 0 0 0 2px var(--muted), 0 0 40px rgba(255,157,77,.15); min-height: 340px; display: flex; flex-direction: column; overflow: hidden; }
+ .mon.glitch { animation: gl .15s 8; }
+ @keyframes gl { 0% { transform: translate(-3px, 0); filter: hue-rotate(40deg); } 50% { transform: translate(3px, 1px); filter: invert(.15); } 100% { transform: none; } }
+ .mon .scr { flex: 1; padding: 18px; line-height: 1.55; font-size: 14px; background: repeating-linear-gradient(0deg, rgba(0,0,0,.18) 0 1px, transparent 1px 3px); white-space: pre-wrap; }
  .mon h2 { color: var(--accent); font-size: 22px; margin-bottom: 6px; }
  .meter { height: 10px; border: 1px solid var(--accent); margin: 10px 0; }
  .meter b { display: block; height: 100%; background: var(--accent); width: 10%; transition: width .6s; }
  .mon button { margin-top: 12px; padding: 8px 14px; background: transparent; border: 1px solid var(--accent); color: var(--accent); }
  .mon a { color: var(--accent); }
  .stand { width: 90px; height: 16px; background: #2b2b2b; margin: 0 auto; border-radius: 0 0 6px 6px; }
- .legend { font-size: 12px; color: var(--muted); text-align: center; margin-top: 14px; }
+ .proc { margin-top: 12px; font-size: 12px; border-top: 1px dashed var(--muted); padding-top: 8px; }
+ .proc div { display: flex; justify-content: space-between; gap: 8px; }
 
+  @media (max-width: 700px) { body { padding-right: 38px !important; } }
 </style>
 </head>
 <body>
@@ -87,9 +107,12 @@
 <div class="dlg" id="dlg"><div class="card" id="dlgcard"></div></div>
 
 <div class="wrap">
- <div><div class="cpu"><div class="die" id="die"></div></div><p class="legend">Solid cores are real projects. Dashed cores are samples. Tap a core.</p></div>
- <div><div class="mon"><div class="scr" id="scr"></div></div><div class="stand"></div></div>
+ <div><div class="cpu" id="cpu"><div class="die" id="die"></div></div>
+  <div class="gauge"><div class="fan" id="fan"></div><div class="bar"><b id="temp"></b></div><span id="deg">42C</span></div>
+  <p style="font-size:12px;color:var(--muted);text-align:center;margin-top:12px">Solid cores are real projects. Dashed outline marks sample content. Yours goes here.</p></div>
+ <div><div class="mon" id="mon"><div class="scr" id="scr"></div></div><div class="stand"></div></div>
 </div>
+<div class="tools"><button type="button" id="oc">Overclock</button><button type="button" id="ps">Processes</button></div>
 
 <script>
 (function () {
@@ -198,24 +221,47 @@ var PROJECTS = [
   }
   window.WORLD = { PROJECTS: PROJECTS, openDetail: openDetail, blip: blip, $: $, $$: $$, esc: esc, reduce: reduce, EMAIL: EMAIL, NAME: NAME };
 
-  var die = $("#die"), scr = $("#scr");
+  var die = $("#die"), scr = $("#scr"), cpu = $("#cpu"), mon = $("#mon"), booted = false, hot = false, cur = -1;
   die.innerHTML = PROJECTS.map(function (p, i) {
     return '<button type="button" class="core ' + (p.k === "Sample" ? "sample" : "") + '" data-i="' + i + '"><i></i><span>' + esc(p.n) + '</span></button>';
   }).join("");
-  var cores = $$(".core", die);
+  var cores = $$(".core", die), load = PROJECTS.map(function (p, i) { return p.k === "Real" ? 55 + (i * 9) % 40 : 20 + (i * 13) % 30; });
   function show(i) {
-    var p = PROJECTS[i];
+    if (!booted) return;
+    var p = PROJECTS[i]; cur = i;
     cores.forEach(function (c, j) { c.classList.toggle("on", j === i); });
-    scr.innerHTML = '<h2>' + esc(p.n) + '</h2><div>' + esc(p.t) + ' | <b>' + p.k + '</b></div><div class="meter"><b id="m"></b></div><p>' + esc(p.d) + '</p>' +
+    scr.innerHTML = '<h2>' + esc(p.n) + '</h2><div>' + esc(p.t) + ' | <b>' + (p.k === "Sample" ? "SAMPLE (dashed, invented)" : "Real") + '</b></div><div class="meter"><b id="m"></b></div><p>' + esc(p.d) + '</p>' +
       '<button type="button" id="more">Open details</button>';
-    setTimeout(function () { var m = $("#m"); if (m) m.style.width = (p.k === "Real" ? 60 + (i * 7) % 40 : 25 + (i * 11) % 30) + "%"; }, 30);
+    setTimeout(function () { var m = $("#m"); if (m) m.style.width = load[i] + "%"; }, 30);
     $("#more").addEventListener("click", function () { openDetail(p); });
     blip(300 + i * 40, 0.08, "square");
   }
   die.addEventListener("click", function (e) { var c = e.target.closest(".core"); if (c) show(+c.getAttribute("data-i")); });
-  setInterval(function () { cores.forEach(function (c) { c.firstChild.style.height = (10 + Math.random() * 70) + "%"; }); }, 900);
+  var tick = setInterval(function () { cores.forEach(function (c, i) { c.firstChild.style.height = (hot ? 70 + Math.random() * 30 : 10 + Math.random() * 60) + "%"; }); }, 800);
+  function setTemp(t) { $("#temp").style.width = Math.min(100, (t - 30) * 1.4) + "%"; $("#deg").textContent = Math.round(t) + "C"; }
+  var temp = 42;
+  setInterval(function () { temp += ((hot ? 96 : 42 + Math.random() * 6) - temp) * 0.15; setTemp(temp); }, 250);
+  /* overclock: the whole machine reacts */
+  $("#oc").addEventListener("click", function () {
+    if (hot || !booted) return; hot = true;
+    cpu.classList.add("hot"); mon.classList.add("glitch"); $("#oc").classList.add("on"); $("#oc").textContent = "Overclocked";
+    for (var k = 0; k < 6; k++) setTimeout(function (n) { blip(180 + n * 90, 0.18, "sawtooth"); }, k * 120, k);
+    scr.innerHTML = '<h2>OVERCLOCK</h2><p>All cores at 100 percent. Fan at full speed.\nThis is the same energy a client portfolio can have: fast, a little dangerous and memorable.</p><div class="meter"><b style="width:100%"></b></div>';
+    setTimeout(function () { mon.classList.remove("glitch"); }, 1300);
+    setTimeout(function () { hot = false; cpu.classList.remove("hot"); $("#oc").classList.remove("on"); $("#oc").textContent = "Overclock"; if (cur >= 0) show(cur); else scr.innerHTML = '<h2>Cooled down</h2><p>Pick a core to load a project.</p>'; blip(300, 0.3, "sine"); }, 4500);
+  });
+  $("#ps").addEventListener("click", function () {
+    if (!booted) return; blip(500, 0.08);
+    var order = PROJECTS.map(function (p, i) { return i; }).sort(function (a, b) { return load[b] - load[a]; });
+    scr.innerHTML = '<h2>Processes</h2><div class="proc">' + order.map(function (i) { return '<div><span>' + (PROJECTS[i].k === "Sample" ? "(sample) " : "") + esc(PROJECTS[i].n) + '</span><span>' + load[i] + '%</span></div>'; }).join("") + '</div>';
+  });
   window.WORLD_START = function () {
-    scr.innerHTML = '<h2>' + NAME + '</h2><p>Developer. Pick a core on the chip to load a project on this monitor.</p><p>Contact: <a href="mailto:' + EMAIL + '">' + EMAIL + '</a></p>';
+    var lines = ["POST ........ OK", "Cores ....... " + PROJECTS.length + " found", "Real ........ " + PROJECTS.filter(function (p) { return p.k === "Real"; }).length, "Samples ..... " + PROJECTS.filter(function (p) { return p.k === "Sample"; }).length + " (dashed)", "", "Ready."], i = 0;
+    (function step() {
+      scr.textContent = lines.slice(0, i + 1).join("\n"); blip(1000 + i * 60, 0.03, "square"); i++;
+      if (i < lines.length) setTimeout(step, 260);
+      else setTimeout(function () { booted = true; scr.innerHTML = '<h2>' + NAME + '</h2><p>Developer. Pick a core on the chip to load a project on this monitor. Try Overclock.</p><p>Contact: <a href="mailto:' + EMAIL + '">' + EMAIL + '</a></p>'; }, 400);
+    })();
   };
 
   if (reduce) { intro.remove(); root.classList.remove("portal-in"); start(); }
@@ -232,5 +278,6 @@ var PROJECTS = [
   }
 })();
 </script>
+<script src="portfolio-shared.js"></script>
 </body>
 </html>

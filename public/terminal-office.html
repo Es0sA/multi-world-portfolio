@@ -28,6 +28,12 @@
   .who b { display: block; font-size: 14px; }
   .tag { display: inline-block; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 2px 7px; border: 1px solid currentColor; }
   .tag.sample { opacity: .75; }
+  .tools { position: fixed; left: 12px; bottom: 12px; z-index: 60; display: flex; gap: 6px; flex-wrap: wrap; max-width: calc(100vw - 56px); }
+  .tools button { padding: 9px 12px; font-size: 13px; background: var(--bg); color: var(--fg); border: 1px solid var(--accent); border-radius: 6px; }
+  .tools button.on { background: var(--accent); color: var(--bg); }
+  .tools .sw { width: 30px; height: 30px; padding: 0; border-radius: 50%; border: 2px solid var(--fg); }
+  .tools .sw.on { outline: 3px solid var(--accent); outline-offset: 1px; }
+  .smp { border-style: dashed !important; }
   /* detail dialog */
   .dlg { position: fixed; inset: 0; z-index: 200; display: none; align-items: center; justify-content: center; padding: 16px; background: rgba(0,0,0,.6); }
   .dlg.on { display: flex; }
@@ -56,12 +62,15 @@
   @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 
  body { padding: 64px 12px 12px; }
- .desk { max-width: 860px; margin: 0 auto; border: 2px solid var(--accent); border-radius: 10px; box-shadow: 0 0 40px rgba(93,255,138,.18); background: #040a06; display: flex; flex-direction: column; height: calc(100vh - 80px); height: calc(100dvh - 80px); }
- .bar { padding: 6px 12px; border-bottom: 1px solid var(--muted); font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; }
+ body.amber { --fg:#ffe0a8; --accent:#ffb347; --muted:#a8742a; }
+ body.ice { --fg:#d6f4ff; --accent:#7cf4ff; --muted:#3d8a9a; }
+ .desk { max-width: 860px; margin: 0 auto; border: 2px solid var(--accent); border-radius: 10px; box-shadow: 0 0 40px rgba(93,255,138,.18); background: #040a06; display: flex; flex-direction: column; height: calc(100vh - 76px); height: calc(100dvh - 76px); position: relative; overflow: hidden; }
+ .bar { padding: 6px 12px; border-bottom: 1px solid var(--muted); font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; gap: 8px; }
  #out { flex: 1; overflow: auto; padding: 12px; font-size: 14px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
  #out .p { color: var(--accent); }
  #out .dim { color: var(--muted); }
  #out a, #out .cmd { color: var(--accent); text-decoration: underline; cursor: pointer; background: none; border: 0; font: inherit; padding: 0; }
+ #out .smpx { border: 1px dashed currentColor; padding: 0 5px; font-size: 11px; color: var(--muted); }
  .line { display: flex; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--muted); }
  .line span { color: var(--accent); }
  #in { flex: 1; background: transparent; border: 0; outline: 0; color: var(--fg); font: inherit; font-size: 16px; min-width: 0; }
@@ -69,7 +78,12 @@
  .chips button { background: transparent; border: 1px solid var(--muted); color: var(--accent); padding: 4px 10px; font-size: 12px; }
  .crt { pointer-events: none; position: fixed; inset: 0; z-index: 40; background: repeating-linear-gradient(0deg, rgba(0,0,0,.14) 0 1px, transparent 1px 3px); }
  .lamp { position: fixed; right: -60px; bottom: -60px; width: 240px; height: 240px; border-radius: 50%; background: radial-gradient(circle, rgba(255,214,120,.14), transparent 70%); pointer-events: none; }
+ #rain { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 5; display: none; background: rgba(0,6,2,.88); }
+ #rain.on { display: block; }
+ @keyframes shake { 25% { transform: translate(-2px, 1px); } 75% { transform: translate(2px, -1px); } }
+ .desk.shake { animation: shake .12s 5; }
 
+  @media (max-width: 700px) { body { padding-right: 38px !important; } }
 </style>
 </head>
 <body>
@@ -81,7 +95,7 @@
 <div class="dlg" id="dlg"><div class="card" id="dlgcard"></div></div>
 
 <div class="crt"></div><div class="lamp"></div>
-<div class="desk"><div class="bar"><span>esosa@office:~</span><span id="clock"></span></div>
+<div class="desk" id="desk"><canvas id="rain"></canvas><div class="bar"><span>esosa@office:~</span><span>dashed = sample</span><span id="clock"></span></div>
 <div id="out" aria-live="polite"></div>
 <div class="chips" id="chips"></div>
 <form class="line" id="f"><span>$</span><input id="in" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Command"></form></div>
@@ -193,15 +207,42 @@ var PROJECTS = [
   }
   window.WORLD = { PROJECTS: PROJECTS, openDetail: openDetail, blip: blip, $: $, $$: $$, esc: esc, reduce: reduce, EMAIL: EMAIL, NAME: NAME };
 
-  var out = $("#out"), inp = $("#in"), hist = [], hi = 0;
-  function say(h) { var d = document.createElement("div"); d.innerHTML = h; out.appendChild(d); out.scrollTop = out.scrollHeight; }
+  var out = $("#out"), inp = $("#in"), hist = [], hi = 0, busy = false;
+  function say(h) { var d = document.createElement("div"); d.innerHTML = h; out.appendChild(d); out.scrollTop = out.scrollHeight; return d; }
   function cmdBtn(c, label) { return '<button class="cmd" data-c="' + c + '">' + (label || c) + '</button>'; }
+  function tagOf(p) { return p.k === "Sample" ? ' <span class="smpx">SAMPLE</span>' : ' <span class="dim">[Real]</span>'; }
+  function typeLines(lines, done) {
+    var i = 0; busy = true;
+    (function next() {
+      if (i >= lines.length) { busy = false; if (done) done(); return; }
+      var el = say(""), t = lines[i++], k = 0;
+      (function ch() { k += 2; el.innerHTML = t.slice(0, k); out.scrollTop = out.scrollHeight; if (k < t.length) setTimeout(ch, 8); else { blip(900, 0.02, "square"); setTimeout(next, 90); } })();
+    })();
+  }
+  var NAMES = ["help","ls","real","samples","about","skills","neofetch","matrix","theme","hire","whoami","date","cat","contact","clear","open","sudo"];
   var C = {
-    help: function () { say('Commands: ' + ['ls','real','samples','about','contact','clear'].map(function (c) { return cmdBtn(c); }).join(', ') + '. Or type <span class="p">open N</span>.'); },
-    ls: function () { say(PROJECTS.map(function (p, i) { return (i < 9 ? ' ' : '') + (i + 1) + '  ' + cmdBtn('open ' + (i + 1), esc(p.n)) + ' <span class="dim">[' + p.k + ']</span>'; }).join('\n')); },
+    help: function () { say('Commands: ' + NAMES.filter(function (n) { return n !== "sudo" && n !== "cat"; }).map(function (c) { return cmdBtn(c); }).join(', ') + '.\nTab completes. Up arrow repeats. Try <span class="p">open 2</span>, <span class="p">theme amber</span> or <span class="p">matrix</span>.'); },
+    ls: function () { say(PROJECTS.map(function (p, i) { return (i < 9 ? ' ' : '') + (i + 1) + '  ' + cmdBtn('open ' + (i + 1), esc(p.n)) + tagOf(p); }).join('\n')); },
     real: function () { say(PROJECTS.map(function (p, i) { return p.k === "Real" ? (i + 1) + '  ' + cmdBtn('open ' + (i + 1), esc(p.n)) : ''; }).filter(Boolean).join('\n')); },
-    samples: function () { say('<span class="dim">Sample projects are invented, to show how your work could look.</span>\n' + PROJECTS.map(function (p, i) { return p.k === "Sample" ? (i + 1) + '  ' + cmdBtn('open ' + (i + 1), esc(p.n)) : ''; }).filter(Boolean).join('\n')); },
-    about: function () { say(NAME + ', developer. I build web apps, bots and tools, and I can present your work the same way this office presents mine.'); },
+    samples: function () { say('<span class="dim">Sample projects are invented. They show where your own work would go.</span>\n' + PROJECTS.map(function (p, i) { return p.k === "Sample" ? (i + 1) + '  ' + cmdBtn('open ' + (i + 1), esc(p.n)) + tagOf(p) : ''; }).filter(Boolean).join('\n')); },
+    about: function () { say(NAME + ', developer. I build web apps, bots and tools, and I can present your work the way this office presents mine.'); },
+    whoami: function () { say('guest, visiting a sample developer portfolio. Yours would say your name here.'); },
+    skills: function () {
+      var rows = [["Web apps", 90], ["Bots and automation", 85], ["Node and Python", 80], ["Interfaces", 75]];
+      say(rows.map(function (r) { var n = Math.round(r[1] / 5); return (r[0] + "               ").slice(0, 20) + '<span class="p">' + "#".repeat(n) + '</span><span class="dim">' + ".".repeat(20 - n) + '</span> <span class="smpx">SAMPLE</span>'; }).join('\n'));
+    },
+    neofetch: function () {
+      say('<span class="p">      .--.       </span>' + NAME.toLowerCase().replace(" ", "@") + '\n<span class="p">     |o_o |      </span>---------------\n<span class="p">     |:_/ |      </span>role: developer\n<span class="p">    //   \\ \\     </span>shell: portfolio-sh\n<span class="p">   (|     | )    </span>projects: ' + PROJECTS.length + '\n<span class="p">  /\'\\_   _/`\\    </span>theme: ' + (document.body.className || "green") + '\n<span class="p">  \\___)=(___/    </span>uptime: since you opened this tab');
+    },
+    theme: function (a) {
+      if (a !== "amber" && a !== "ice" && a !== "green") { say('usage: theme green | amber | ice'); return; }
+      document.body.className = a === "green" ? "" : a; blip(500, 0.1); say('theme set to ' + a);
+    },
+    matrix: function () { rain(); },
+    hire: function () { say('Opening the commission form...'); if (window.openCommission) setTimeout(window.openCommission, 300); },
+    sudo: function (a, rest) { if (rest.join(" ").toLowerCase().indexOf("hire") === 0) C.hire(); else say('<span class="dim">esosa is not in the sudoers file. This incident will be reported.</span>'); },
+    cat: function (a) { if (a === "readme" || a === "readme.md") say('# Terminal Office\nA sample developer portfolio. Every project is a command away. Dashed tags mark sample content.'); else say('<span class="dim">cat: ' + esc(a || "") + ': No such file. Try cat readme</span>'); },
+    date: function () { say(new Date().toString()); },
     contact: function () { say('Email: <a href="mailto:' + EMAIL + '">' + EMAIL + '</a>'); },
     clear: function () { out.innerHTML = ""; },
     open: function (a) {
@@ -211,23 +252,39 @@ var PROJECTS = [
     }
   };
   function exec(line) {
-    line = line.trim(); if (!line) return;
+    line = line.trim(); if (!line || busy) return;
     say('<span class="p">$</span> ' + esc(line)); blip(700, 0.04, "square");
     var parts = line.split(/\s+/), c = parts[0].toLowerCase();
-    if (C[c]) C[c](parts[1]); else say('<span class="dim">command not found: ' + esc(c) + '. Try help.</span>');
+    if (C[c]) C[c](parts[1], parts.slice(1)); else say('<span class="dim">command not found: ' + esc(c) + '. Try help.</span>');
   }
+  /* matrix rain: a full-screen moment, tap or wait to stop */
+  var rc = $("#rain"), rg = rc.getContext("2d"), rainT = null;
+  function rain() {
+    var d = $("#desk"); rc.width = d.clientWidth; rc.height = d.clientHeight; rc.classList.add("on");
+    var cols = Math.floor(rc.width / 14), drops = []; for (var i = 0; i < cols; i++) drops.push(Math.random() * -40);
+    var chars = "01ABCDEF{}<>/;=+*#$", t0 = performance.now(); blip(120, 0.6, "sawtooth"); $("#desk").classList.add("shake");
+    clearInterval(rainT);
+    rainT = setInterval(function () {
+      rg.fillStyle = "rgba(0,6,2,.18)"; rg.fillRect(0, 0, rc.width, rc.height);
+      rg.fillStyle = getComputedStyle(document.body).getPropertyValue("--accent") || "#5dff8a"; rg.font = "14px monospace";
+      drops.forEach(function (y, i) { rg.fillText(chars[Math.floor(Math.random() * chars.length)], i * 14, y * 14); drops[i] = y * 14 > rc.height && Math.random() > 0.96 ? 0 : y + 1; });
+      if (performance.now() - t0 > 6000) stopRain();
+    }, 50);
+  }
+  function stopRain() { clearInterval(rainT); rc.classList.remove("on"); $("#desk").classList.remove("shake"); inp.focus(); }
+  rc.addEventListener("click", stopRain);
   $("#f").addEventListener("submit", function (e) { e.preventDefault(); hist.push(inp.value); hi = hist.length; exec(inp.value); inp.value = ""; });
   inp.addEventListener("keydown", function (e) {
     if (e.key === "ArrowUp" && hist.length) { hi = Math.max(0, hi - 1); inp.value = hist[hi]; e.preventDefault(); }
     if (e.key === "ArrowDown") { hi = Math.min(hist.length, hi + 1); inp.value = hist[hi] || ""; e.preventDefault(); }
+    if (e.key === "Tab") { e.preventDefault(); var v = inp.value.toLowerCase(), m = NAMES.filter(function (n) { return n.indexOf(v) === 0; }); if (m.length === 1) inp.value = m[0] + " "; else if (m.length > 1) say('<span class="dim">' + m.join("  ") + '</span>'); }
   });
   out.addEventListener("click", function (e) { var b = e.target.closest(".cmd"); if (b) exec(b.getAttribute("data-c")); });
-  $("#chips").innerHTML = ["help","ls","real","samples","about","contact"].map(function (c) { return '<button type="button" data-c="' + c + '">' + c + '</button>'; }).join("");
+  $("#chips").innerHTML = ["help","ls","skills","neofetch","matrix","hire"].map(function (c) { return '<button type="button" data-c="' + c + '">' + c + '</button>'; }).join("");
   $("#chips").addEventListener("click", function (e) { var b = e.target.closest("button"); if (b) exec(b.getAttribute("data-c")); });
   setInterval(function () { var d = new Date(); $("#clock").textContent = d.toTimeString().slice(0, 5); }, 1000);
   window.WORLD_START = function () {
-    say('<span class="dim">Terminal Office v1. Welcome.</span>');
-    C.about(); say(''); C.help(); say(''); C.ls();
+    typeLines(["Terminal Office v1. Booting...", "[ok] mounting /projects (" + PROJECTS.length + " entries)", "[ok] loading sample data, dashed tags mark it", "Welcome. Type help, or tap a chip below."], function () { C.about(); say(""); C.ls(); inp.focus(); });
   };
 
   if (reduce) { intro.remove(); root.classList.remove("portal-in"); start(); }
@@ -244,5 +301,6 @@ var PROJECTS = [
   }
 })();
 </script>
+<script src="portfolio-shared.js"></script>
 </body>
 </html>

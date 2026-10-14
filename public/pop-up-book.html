@@ -28,6 +28,12 @@
   .who b { display: block; font-size: 14px; }
   .tag { display: inline-block; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 2px 7px; border: 1px solid currentColor; }
   .tag.sample { opacity: .75; }
+  .tools { position: fixed; left: 12px; bottom: 12px; z-index: 60; display: flex; gap: 6px; flex-wrap: wrap; max-width: calc(100vw - 56px); }
+  .tools button { padding: 9px 12px; font-size: 13px; background: var(--bg); color: var(--fg); border: 1px solid var(--accent); border-radius: 6px; }
+  .tools button.on { background: var(--accent); color: var(--bg); }
+  .tools .sw { width: 30px; height: 30px; padding: 0; border-radius: 50%; border: 2px solid var(--fg); }
+  .tools .sw.on { outline: 3px solid var(--accent); outline-offset: 1px; }
+  .smp { border-style: dashed !important; }
   /* detail dialog */
   .dlg { position: fixed; inset: 0; z-index: 200; display: none; align-items: center; justify-content: center; padding: 16px; background: rgba(0,0,0,.6); }
   .dlg.on { display: flex; }
@@ -70,18 +76,28 @@
  .nav span { color: var(--muted); font-size: 14px; }
  .read { padding: 8px 14px; background: #2a1c44; color: #fff3e0; border: 0; font-family: inherit; margin-top: 8px; }
  .mail { display: block; text-align: center; margin-top: 18px; color: var(--muted); }
+ .page.sample { border-style: dashed; }
+ .cover { background: linear-gradient(135deg, #5c3d99, #2a1c44); color: #fff3e0; border: 3px solid #1b1030; border-radius: 6px 14px 14px 6px; min-height: 420px; padding: 28px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: 12px; box-shadow: 8px 10px 0 rgba(0,0,0,.35); transform-origin: left center; cursor: pointer; }
+ .cover h2 { font-size: 38px; }
+ .cover.opening { animation: openbook .9s ease forwards; }
+ @keyframes openbook { to { transform: rotateY(-100deg); opacity: 0; } }
+ .stage { transition: transform .15s linear; }
+ .pop { cursor: pointer; }
+ .pop.wig { animation: wig .5s ease; }
+ @keyframes wig { 30% { transform: rotateX(-52deg) rotateZ(10deg) scaleY(1.15); } 60% { transform: rotateX(-52deg) rotateZ(-8deg) scaleY(.95); } }
 
+  @media (max-width: 700px) { body { padding-right: 38px !important; } }
 </style>
 </head>
 <body>
 <div class="iris" id="iris" aria-hidden="true"></div>
 <noscript><p style="padding:120px 24px;text-align:center">This world needs JavaScript turned on. <a href="hub-homepage.html">Return to the hub</a>.</p></noscript>
 <a class="return" href="hub-homepage.html" title="Return to the hub">Return to hub</a>
-<div class="who"><b>Esosa Osaretin</b>Illustrator</div>
+<div class="who"><b>Esosa Osaretin</b>Illustrator and Comic Artist</div>
 <div class="intro" id="intro"><h1>Pop-Up Book</h1><div>Open the cover. Things stand up.</div><div class="tap">Tap to open</div></div>
 <div class="dlg" id="dlg"><div class="card" id="dlgcard"></div></div>
 
-<div class="book"><div class="page" id="page"></div>
+<div class="book"><div id="coverbox"><div class="cover" id="cover"><span class="tag" style="border:1px dashed #fff3e0;padding:3px 8px;font-size:11px;letter-spacing:.1em">SAMPLE ILLUSTRATOR PORTFOLIO</span><h2>The Pop-Up Book</h2><p>Real projects are solid pages. Dashed pages mark sample content, yours goes here.</p><b style="letter-spacing:.14em;text-transform:uppercase;color:#b48cff">Tap to open</b></div></div><div class="page" id="page" hidden></div>
  <div class="nav"><button id="prev" type="button">Back</button><span id="count"></span><button id="next" type="button">Next page</button></div>
  <a class="mail" href="mailto:esosaosaretin@gmail.com">esosaosaretin@gmail.com</a></div>
 
@@ -200,10 +216,12 @@ var PROJECTS = [
       var w = 60 + ((i + k * 3) * 17) % 50, h = 70 + ((i * 29 + k * 41) % 90);
       pops += '<div class="pop" style="left:' + (8 + k * 30) + '%;width:' + w + 'px;height:' + h + 'px;background:' + cols[(i + k) % cols.length] + ';animation-delay:' + (k * 0.12) + 's;border-radius:' + (k === 1 ? '50% 50% 6px 6px' : '6px') + '">' + (k === 1 ? esc(p.n.split(" ")[0]) : "") + '</div>';
     }
-    pg.innerHTML = '<span class="meta">' + (p.k === "Sample" ? "Sample project (invented)" : "Real project") + ' | ' + esc(p.t) + '</span><h2>' + esc(p.n) + '</h2>' +
+    pg.innerHTML = '<span class="meta">' + (p.k === "Sample" ? "SAMPLE (dashed page, invented)" : "Real project") + ' | ' + esc(p.t) + '</span><h2>' + esc(p.n) + '</h2>' +
       '<div class="stage">' + pops + '</div><p>' + esc(p.d) + '</p><button class="read" type="button" id="rd">Read more</button>';
     $("#rd").addEventListener("click", function () { openDetail(p); });
     $("#count").textContent = (i + 1) + " / " + PROJECTS.length;
+    pg.classList.toggle("sample", p.k === "Sample");
+    $$(".pop", pg).forEach(function (el) { el.addEventListener("click", function () { el.classList.remove("wig"); void el.offsetWidth; el.classList.add("wig"); blip(300 + Math.random() * 400, 0.12, "triangle"); }); });
     pg.classList.remove("flip"); void pg.offsetWidth; pg.classList.add("flip");
     blip(380 + i * 20, 0.12, "triangle");
   }
@@ -212,7 +230,13 @@ var PROJECTS = [
   var tx = null;
   pg.addEventListener("touchstart", function (e) { tx = e.touches[0].clientX; }, { passive: true });
   pg.addEventListener("touchend", function (e) { if (tx === null) return; var d = e.changedTouches[0].clientX - tx; tx = null; if (d < -50) $("#next").click(); else if (d > 50) $("#prev").click(); });
-  window.WORLD_START = render;
+  var opened = false;
+  function openBook() { if (opened) return; opened = true; var cv = $("#cover"); cv.classList.add("opening"); blip(260, 0.4, "sawtooth"); setTimeout(function () { $("#coverbox").remove(); pg.hidden = false; $(".nav").style.visibility = "visible"; render(); }, 850); }
+  $(".nav").style.visibility = "hidden";
+  $("#cover").addEventListener("click", openBook);
+  /* the stage leans toward the pointer so the cut-outs feel physical */
+  document.addEventListener("pointermove", function (e) { var st = $(".stage"); if (!st) return; var rx = 52 - ((e.clientY / innerHeight) - 0.5) * 18, rz = ((e.clientX / innerWidth) - 0.5) * 14; st.style.transform = "rotateX(" + rx + "deg) rotateZ(" + rz + "deg)"; });
+  window.WORLD_START = function () {};
 
   if (reduce) { intro.remove(); root.classList.remove("portal-in"); start(); }
   else if (arrived) {
@@ -228,5 +252,6 @@ var PROJECTS = [
   }
 })();
 </script>
+<script src="portfolio-shared.js"></script>
 </body>
 </html>

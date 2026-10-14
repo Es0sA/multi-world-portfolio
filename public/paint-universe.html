@@ -28,6 +28,12 @@
   .who b { display: block; font-size: 14px; }
   .tag { display: inline-block; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 2px 7px; border: 1px solid currentColor; }
   .tag.sample { opacity: .75; }
+  .tools { position: fixed; left: 12px; bottom: 12px; z-index: 60; display: flex; gap: 6px; flex-wrap: wrap; max-width: calc(100vw - 56px); }
+  .tools button { padding: 9px 12px; font-size: 13px; background: var(--bg); color: var(--fg); border: 1px solid var(--accent); border-radius: 6px; }
+  .tools button.on { background: var(--accent); color: var(--bg); }
+  .tools .sw { width: 30px; height: 30px; padding: 0; border-radius: 50%; border: 2px solid var(--fg); }
+  .tools .sw.on { outline: 3px solid var(--accent); outline-offset: 1px; }
+  .smp { border-style: dashed !important; }
   /* detail dialog */
   .dlg { position: fixed; inset: 0; z-index: 200; display: none; align-items: center; justify-content: center; padding: 16px; background: rgba(0,0,0,.6); }
   .dlg.on { display: flex; }
@@ -59,9 +65,10 @@
  canvas#c { position: fixed; inset: 0; width: 100%; height: 100%; touch-action: none; }
  .orb { position: fixed; z-index: 20; border: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center; text-align: center; padding: 8px; font-size: 12px; font-weight: 700; color: #120818; line-height: 1.1; box-shadow: 0 0 30px var(--g), inset -8px -10px 18px rgba(0,0,0,.25); }
  .orb.sample { background: transparent !important; color: var(--fg); border: 2px dashed var(--g); box-shadow: 0 0 20px var(--g); }
- .hint { position: fixed; z-index: 15; left: 0; right: 0; bottom: 18px; text-align: center; font-size: 13px; color: var(--muted); pointer-events: none; }
- .mail { position: fixed; z-index: 30; left: 0; right: 0; bottom: 48px; text-align: center; font-size: 13px; }
+ .hint { position: fixed; z-index: 15; left: 0; right: 0; bottom: 70px; padding: 0 50px; text-align: center; font-size: 13px; color: var(--muted); pointer-events: none; }
+ .mail { position: fixed; z-index: 30; left: 12px; top: 58px; font-size: 12px; }
 
+  @media (max-width: 700px) { body { padding-right: 38px !important; } }
 </style>
 </head>
 <body>
@@ -72,7 +79,8 @@
 <div class="intro" id="intro"><h1>Paint Universe</h1><div>Drag your finger. The sky is wet paint.</div><div class="tap">Tap to open</div></div>
 <div class="dlg" id="dlg"><div class="card" id="dlgcard"></div></div>
 
-<canvas id="c"></canvas><div class="hint">Drag to paint. Solid planets are real projects, dashed rings are samples.</div>
+<canvas id="c"></canvas><div class="hint">Drag to paint, tap the sky to splat. Solid planets are real projects. Dashed rings mark sample content, yours goes here.</div>
+<div class="tools"><button type="button" class="sw on" data-h="auto" style="background:conic-gradient(red,yellow,lime,cyan,blue,magenta,red)" aria-label="Rainbow"></button><button type="button" class="sw" data-h="350" style="background:hsl(350,90%,60%)" aria-label="Red"></button><button type="button" class="sw" data-h="195" style="background:hsl(195,90%,60%)" aria-label="Blue"></button><button type="button" class="sw" data-h="55" style="background:hsl(55,90%,60%)" aria-label="Yellow"></button><button type="button" id="big">Big brush</button><button type="button" id="wipe">Wipe sky</button></div>
 <a class="mail" href="mailto:esosaosaretin@gmail.com">esosaosaretin@gmail.com</a>
 
 <script>
@@ -201,12 +209,17 @@ var PROJECTS = [
       g.fillStyle = "hsla(" + (h + Math.random() * 40 - 20) + ",90%,60%,.55)"; g.beginPath(); g.arc(x + Math.cos(a) * d, y + Math.sin(a) * d, s, 0, 6.28); g.fill();
     }
   }
-  var last = null;
-  cv.addEventListener("pointerdown", function (e) { last = [e.clientX, e.clientY]; });
+  var last = null, brushH = "auto", brushR = 9, moved = false;
+  $$(".tools .sw").forEach(function (b) { b.addEventListener("click", function () { brushH = b.getAttribute("data-h"); $$(".tools .sw").forEach(function (x) { x.classList.toggle("on", x === b); }); blip(520, 0.06); }); });
+  $("#big").addEventListener("click", function () { brushR = brushR === 9 ? 22 : 9; this.classList.toggle("on", brushR !== 9); blip(300, 0.08, "triangle"); });
+  $("#wipe").addEventListener("click", function () { g.fillStyle = "#0c0614"; g.fillRect(0, 0, W, H); blip(200, 0.25, "sawtooth"); });
+  cv.addEventListener("pointerdown", function (e) { last = [e.clientX, e.clientY]; moved = false; });
+  cv.addEventListener("pointerup", function (e) { if (!moved) { splat(e.clientX, e.clientY, brushH === "auto" ? (performance.now() / 8) % 360 : +brushH, 70); blip(180 + Math.random() * 200, 0.12, "triangle"); } });
   cv.addEventListener("pointermove", function (e) {
     if (!last) return;
-    var h = (performance.now() / 12) % 360, n = 6;
-    for (var i = 0; i <= n; i++) { var x = last[0] + (e.clientX - last[0]) * i / n, y = last[1] + (e.clientY - last[1]) * i / n; g.fillStyle = "hsla(" + h + ",90%,62%,.5)"; g.beginPath(); g.arc(x, y, 9 + Math.random() * 5, 0, 6.28); g.fill(); }
+    moved = true;
+    var h = brushH === "auto" ? (performance.now() / 12) % 360 : +brushH, n = 6;
+    for (var i = 0; i <= n; i++) { var x = last[0] + (e.clientX - last[0]) * i / n, y = last[1] + (e.clientY - last[1]) * i / n; g.fillStyle = "hsla(" + h + ",90%,62%,.5)"; g.beginPath(); g.arc(x, y, brushR + Math.random() * 5, 0, 6.28); g.fill(); }
     last = [e.clientX, e.clientY];
   });
   addEventListener("pointerup", function () { last = null; });
@@ -214,10 +227,10 @@ var PROJECTS = [
   function frame(t) {
     g.fillStyle = "rgba(12,6,20,.012)"; g.fillRect(0, 0, W, H);
     stars.forEach(function (s) { g.fillStyle = "rgba(255,255,255," + (0.3 + 0.5 * Math.abs(Math.sin(t / 900 + s[0]))) + ")"; g.fillRect(s[0], s[1], s[2], s[2]); });
-    var cx = W / 2, cy = (H - 90) / 2 + 55;
+    var cx = (W - (W < 700 ? 38 : 0)) / 2, cy = 80 + (H - 240) / 2;
     orbs.forEach(function (o) {
       o.a += o.sp * 16;
-      var rx = Math.max(10, W / 2 - o.r - 6), ry = Math.max(10, (H - 130) / 2 - o.r), f = o.ring;
+      var rx = Math.max(10, (W - (W < 700 ? 38 : 0)) / 2 - o.r - 6), ry = Math.max(10, (H - 240) / 2 - o.r), f = o.ring;
       var x = cx + Math.cos(o.a) * rx * f, y = cy + Math.sin(o.a) * ry * f;
       o.el.style.left = (x - o.r) + "px"; o.el.style.top = (y - o.r) + "px"; o.el.dataset.x = x; o.el.dataset.y = y;
       if (Math.random() < 0.03) { g.fillStyle = "hsla(" + o.h + ",90%,60%,.12)"; g.beginPath(); g.arc(x, y, o.r * 0.8, 0, 6.28); g.fill(); }
@@ -240,5 +253,6 @@ var PROJECTS = [
   }
 })();
 </script>
+<script src="portfolio-shared.js"></script>
 </body>
 </html>

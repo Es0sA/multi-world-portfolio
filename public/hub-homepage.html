@@ -48,7 +48,9 @@
     letter-spacing: 0.04em;
     text-shadow: 0 0 28px rgba(124, 244, 255, 0.35);
   }
-  .hint { margin-top: 8px; font-size: 13px; color: var(--muted); min-height: 18px; }
+  .pitch { margin: 12px auto 0; max-width: 520px; font-size: 16px; line-height: 1.45; color: #d6dcf2; }
+  .pitch small { display: block; margin-top: 6px; font-size: 13px; color: var(--muted); }
+  .hint { margin-top: 10px; font-size: 13px; color: var(--muted); min-height: 18px; }
   .hint.active { color: var(--accent); }
 
   .hit {
@@ -139,6 +141,7 @@
   <div class="overlay">
     <div class="mark">Esosa Portfolio Sanctum</div>
     <h1>Choose a world</h1>
+    <p class="pitch">Pick your profession. Then pick how far from a template you want to go.<small>Every world is a sample of what I can build for you. Yours would hold your own work.</small></p>
     <div class="hint" id="hint"></div>
   </div>
 </div>
@@ -337,7 +340,7 @@ const WORLDS = [
   { id: "ink-dimension",   name: "Ink Dimension",        field: "Illustrator", tier: "Beyond",  color: [154, 163, 184], url: "ink-dimension.html" }
 ];
 
-let W = 0, H = 0, dpr = 1, compact = false, topPad = 0;
+let W = 0, H = 0, dpr = 1, compact = false, topPad = 0, gridX = 0, gridW = 0;
 let portals = [];
 let stars = [];
 let hovered = -1;
@@ -488,12 +491,14 @@ function layout() {
   W = Math.round(stage.clientWidth || window.innerWidth);
   compact = W < 720;
 
-  const cols = compact ? 2 : 3;
+  const cols = 3;
   const rows = Math.ceil(WORLDS.length / cols);
-  topPad = compact ? 200 : 210;
-  const cellW = W / cols;
-  const cellH = compact ? 210 : Math.max(190, (window.innerHeight - topPad - 30) / rows);
-  const radius = Math.max(32, Math.min(cellW * 0.22, cellH * 0.22, 72));
+  gridW = compact ? W - 58 : Math.min(W, 920);
+  gridX = compact ? 12 : (W - gridW) / 2;
+  topPad = compact ? 300 : 280;
+  const cellW = gridW / cols;
+  const radius = Math.max(28, Math.min(cellW * 0.19, 48));
+  const cellH = Math.ceil(radius * 1.2 * 3.05 + (compact ? 108 : 100));
 
   H = Math.max(window.innerHeight, topPad + cellH * rows + 50);
   canvas.width = W * dpr;
@@ -506,11 +511,9 @@ function layout() {
   portals = WORLDS.map((w, i) => {
     const col = i % cols;
     const row = Math.floor(i / cols);
-    const inRow = Math.min(cols, WORLDS.length - row * cols);
-    const offset = ((cols - inRow) * cellW) / 2;
     const o = old[i];
     return Object.assign({}, w, {
-      x: cellW * col + cellW / 2 + offset,
+      x: gridX + cellW * col + cellW / 2,
       y: topPad + cellH * row + cellH / 2,
       r: radius,
       seed: (i + 1) * 7.3,
@@ -523,10 +526,10 @@ function layout() {
 
   portals.forEach((p, i) => {
     const b = buttons[i];
-    b.style.left = (p.x - p.r * 1.5) + "px";
-    b.style.top = (p.y - p.r * 2) + "px";
-    b.style.width = (p.r * 3) + "px";
-    b.style.height = (p.r * 4) + "px";
+    b.style.left = (p.x - p.r * 1.6) + "px";
+    b.style.top = (p.y - p.r * 2.1) + "px";
+    b.style.width = (p.r * 3.2) + "px";
+    b.style.height = (p.r * 4.2) + "px";
   });
 
   stars = Array.from({ length: Math.floor((W * H) / 9000) }, () => ({
@@ -547,90 +550,188 @@ function drawStars(viewTop, viewBottom) {
   }
 }
 
+/* Each world gets its own silhouette so the doorway hints at what is inside.
+   Shapes are drawn in a unit box of half-size u around (0, 0). */
+function glyphPath(id, u, time, hover) {
+  const L = (a, b, c, d) => { ctx.moveTo(a, b); ctx.lineTo(c, d); };
+  const RR = (x, y, w, h, r) => { ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); };
+  ctx.beginPath();
+  switch (id) {
+    case "terminal-office": {                  // window with a prompt and a blinking cursor
+      RR(-u, -u * 0.75, u * 2, u * 1.5, u * 0.15);
+      L(-u, -u * 0.4, u, -u * 0.4);
+      L(-u * 0.7, -u * 0.05, -u * 0.4, u * 0.15); L(-u * 0.4, u * 0.15, -u * 0.7, u * 0.35);
+      if (Math.floor(time * 1.8) % 2 === 0) { ctx.rect(-u * 0.2, u * 0.25, u * 0.35, u * 0.12); }
+      break; }
+    case "cpu-and-monitor": {                  // monitor with a chip on the screen
+      RR(-u, -u * 0.8, u * 2, u * 1.3, u * 0.12);
+      L(-u * 0.35, u * 0.5, -u * 0.5, u * 0.85); L(u * 0.35, u * 0.5, u * 0.5, u * 0.85); L(-u * 0.6, u * 0.85, u * 0.6, u * 0.85);
+      ctx.rect(-u * 0.32, -u * 0.5, u * 0.64, u * 0.64);
+      for (let k = -1; k <= 1; k += 2) { L(-u * 0.5, k * u * 0.15 - u * 0.18, -u * 0.32, k * u * 0.15 - u * 0.18); L(u * 0.32, k * u * 0.15 - u * 0.18, u * 0.5, k * u * 0.15 - u * 0.18); }
+      break; }
+    case "circuit-city": {                     // chip with pins on every side
+      ctx.rect(-u * 0.6, -u * 0.6, u * 1.2, u * 1.2);
+      ctx.rect(-u * 0.25, -u * 0.25, u * 0.5, u * 0.5);
+      for (let k = -2; k <= 2; k++) {
+        const o = k * u * 0.22;
+        L(o, -u * 0.6, o, -u); L(o, u * 0.6, o, u); L(-u * 0.6, o, -u, o); L(u * 0.6, o, u, o);
+      }
+      break; }
+    case "gallery-wall": {                     // picture frame with a landscape
+      ctx.rect(-u * 0.85, -u * 0.8, u * 1.7, u * 1.6);
+      ctx.rect(-u * 0.62, -u * 0.57, u * 1.24, u * 1.14);
+      ctx.moveTo(-u * 0.62, u * 0.4); ctx.lineTo(-u * 0.2, -u * 0.05); ctx.lineTo(u * 0.05, u * 0.22); ctx.lineTo(u * 0.3, -u * 0.15); ctx.lineTo(u * 0.62, u * 0.4);
+      ctx.moveTo(u * 0.4 + u * 0.1, -u * 0.35); ctx.arc(u * 0.4, -u * 0.35, u * 0.1, 0, Math.PI * 2);
+      break; }
+    case "sketchbook": {                       // spiral-bound page with a scribble
+      ctx.save(); ctx.rotate(-0.12);
+      ctx.rect(-u * 0.7, -u * 0.9, u * 1.4, u * 1.8);
+      for (let k = 0; k < 5; k++) { const y = -u * 0.7 + k * u * 0.34; ctx.moveTo(-u * 0.7 + u * 0.1, y); ctx.arc(-u * 0.7, y, u * 0.1, 0, Math.PI * 2); }
+      ctx.moveTo(-u * 0.3, u * 0.4); ctx.bezierCurveTo(-u * 0.1, -u * 0.5, u * 0.1, u * 0.6, u * 0.4, -u * 0.4);
+      ctx.restore(); break; }
+    case "paint-universe": {                   // wobbling paint blob with splashes
+      const n = 36;
+      for (let k = 0; k <= n; k++) {
+        const a = (k / n) * Math.PI * 2, w = 1 + Math.sin(a * 3 + time * 1.6) * 0.14 + Math.sin(a * 5 - time) * 0.07;
+        const x = Math.cos(a) * u * 0.78 * w, y = Math.sin(a) * u * 0.7 * w;
+        if (k) ctx.lineTo(x, y); else ctx.moveTo(x, y);
+      }
+      ctx.moveTo(u * 0.98, -u * 0.5); ctx.arc(u * 0.88, -u * 0.5, u * 0.1, 0, Math.PI * 2);
+      ctx.moveTo(-u * 0.78, u * 0.82); ctx.arc(-u * 0.88, u * 0.82, u * 0.08, 0, Math.PI * 2);
+      break; }
+    case "comic-page": {                       // comic panels with a speech bubble
+      ctx.rect(-u * 0.9, -u * 0.85, u * 1.8, u * 1.7);
+      L(-u * 0.9, 0.05 * u, u * 0.9, 0.05 * u); L(0.1 * u, -u * 0.85, 0.1 * u, 0.05 * u);
+      ctx.moveTo(-u * 0.15, u * 0.4); ctx.ellipse(-u * 0.15, u * 0.4, u * 0.5, u * 0.26, 0, 0, Math.PI * 2);
+      ctx.moveTo(-u * 0.35, u * 0.6); ctx.lineTo(-u * 0.5, u * 0.8); ctx.lineTo(-u * 0.2, u * 0.64);
+      break; }
+    case "pop-up-book": {                      // open book with a shape standing up
+      ctx.moveTo(0, u * 0.7); ctx.lineTo(-u * 0.95, u * 0.45); ctx.lineTo(-u * 0.95, -u * 0.25); ctx.lineTo(0, u * 0.0); ctx.lineTo(u * 0.95, -u * 0.25); ctx.lineTo(u * 0.95, u * 0.45); ctx.closePath();
+      L(0, 0, 0, u * 0.7);
+      const rise = 0.75 + Math.sin(time * 1.5) * 0.12;
+      ctx.moveTo(-u * 0.3, u * 0.1); ctx.lineTo(0, -u * rise); ctx.lineTo(u * 0.3, u * 0.1);
+      break; }
+    case "ink-dimension": {                    // ink drop with ripples
+      ctx.moveTo(0, -u * 0.95); ctx.bezierCurveTo(u * 0.7, -u * 0.1, u * 0.7, u * 0.55, 0, u * 0.55);
+      ctx.bezierCurveTo(-u * 0.7, u * 0.55, -u * 0.7, -u * 0.1, 0, -u * 0.95);
+      ctx.moveTo(u * 0.9, u * 0.82); ctx.ellipse(0, u * 0.82, u * 0.9, u * 0.14, 0, 0, Math.PI * 2);
+      break; }
+  }
+}
+
+const TIER = { Regular: { k: 1, rings: 1, motes: 5, aura: 1 }, Crazy: { k: 1.07, rings: 2, motes: 7, aura: 1.3 }, Beyond: { k: 1.2, rings: 3, motes: 10, aura: 1.8 } };
+
 function drawPortal(p, time) {
   const r = p.color[0], g = p.color[1], b = p.color[2];
+  const T = TIER[p.tier] || TIER.Regular;
   const hover = p.glow;
-  const R = p.r * (1 + hover * 0.08);
+  const R = p.r * T.k * (1 + hover * 0.08);
   const blurScale = isTouch ? 0.5 : 1;
+  const rgb = "rgb(" + r + "," + g + "," + b + ")";
+  const pulse = p.tier === "Beyond" && !reduceMotion ? 0.75 + Math.sin(time * 2 + p.seed) * 0.25 : 1;
 
   ctx.globalAlpha = Math.max(0, Math.min(1, p.fade));
 
-  // Outer aura
-  const aura = ctx.createRadialGradient(p.x, p.y, R * 0.4, p.x, p.y, R * 2.1);
-  aura.addColorStop(0, "rgba(" + r + "," + g + "," + b + "," + Math.min(1, 0.10 + hover * 0.25) + ")");
+  // Outer aura: wider and brighter the further from a template the world goes
+  const aura = ctx.createRadialGradient(p.x, p.y, R * 0.4, p.x, p.y, R * (1.9 + T.aura * 0.35));
+  aura.addColorStop(0, "rgba(" + r + "," + g + "," + b + "," + Math.min(1, (0.10 + hover * 0.25) * T.aura * pulse) + ")");
   aura.addColorStop(1, "rgba(" + r + "," + g + "," + b + ",0)");
   ctx.fillStyle = aura;
   ctx.beginPath();
-  ctx.arc(p.x, p.y, R * 2.1, 0, Math.PI * 2);
+  ctx.arc(p.x, p.y, R * (1.9 + T.aura * 0.35), 0, Math.PI * 2);
   ctx.fill();
 
-  // Swirling vortex: counter-rotating elliptical rings
-  for (let k = 0; k < 4; k++) {
-    const ringR = R * (0.55 + k * 0.18);
-    const squash = 0.35 + k * 0.05;
+  // Frame rings: one for Regular, two for Crazy, three for Beyond
+  for (let k = 0; k < T.rings; k++) {
     ctx.save();
     ctx.translate(p.x, p.y);
-    ctx.rotate(p.rot * (k % 2 ? -1 : 1) * (1 + k * 0.2));
+    ctx.rotate(p.rot * (k % 2 ? -1 : 1) * (1 + k * 0.25));
     ctx.beginPath();
-    ctx.ellipse(0, 0, ringR, ringR * squash, 0, 0.2, Math.PI * 1.6);
-    ctx.strokeStyle = "rgba(" + r + "," + g + "," + b + "," + Math.min(1, 0.35 + hover * 0.4 - k * 0.05) + ")";
-    ctx.lineWidth = Math.max(1, 2 + hover * 1.5 - k * 0.3);
-    ctx.shadowColor = "rgb(" + r + "," + g + "," + b + ")";
-    ctx.shadowBlur = (10 + hover * 14) * blurScale;
+    ctx.arc(0, 0, R * (0.98 + k * 0.17), 0.3, Math.PI * (1.55 + k * 0.1));
+    ctx.strokeStyle = "rgba(" + r + "," + g + "," + b + "," + Math.min(1, 0.5 + hover * 0.4 - k * 0.1) + ")";
+    ctx.lineWidth = Math.max(1, 2 + hover * 1.5 - k * 0.4);
+    ctx.shadowColor = rgb;
+    ctx.shadowBlur = (10 + hover * 14 + (T.aura - 1) * 8) * blurScale;
     ctx.stroke();
     ctx.restore();
   }
 
-  // Dark core: the doorway itself
+  // Dark doorway with the world's silhouette inside
   ctx.shadowBlur = 0;
-  const core = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, R * 0.6);
-  core.addColorStop(0, "rgba(2,3,10,1)");
-  core.addColorStop(0.8, "rgba(" + r + "," + g + "," + b + "," + Math.min(1, 0.15 + hover * 0.2) + ")");
-  core.addColorStop(1, "rgba(2,3,10,0)");
+  const core = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, R * 0.95);
+  core.addColorStop(0, "rgba(2,3,10,0.95)");
+  core.addColorStop(0.75, "rgba(2,3,10,0.9)");
+  core.addColorStop(1, "rgba(" + r + "," + g + "," + b + "," + Math.min(1, 0.12 + hover * 0.2) + ")");
   ctx.fillStyle = core;
   ctx.beginPath();
-  ctx.arc(p.x, p.y, R * 0.6, 0, Math.PI * 2);
+  ctx.arc(p.x, p.y, R * 0.95, 0, Math.PI * 2);
   ctx.fill();
 
+  ctx.save();
+  ctx.translate(p.x, p.y);
+  glyphPath(p.id, R * 0.58, time, hover);
+  ctx.fillStyle = "rgba(" + r + "," + g + "," + b + "," + (0.1 + hover * 0.12) + ")";
+  ctx.strokeStyle = "rgba(" + r + "," + g + "," + b + "," + Math.min(1, 0.9 + hover * 0.1) + ")";
+  ctx.lineWidth = Math.max(1.4, R * 0.04);
+  ctx.lineJoin = "round"; ctx.lineCap = "round";
+  ctx.shadowColor = rgb;
+  ctx.shadowBlur = (8 + hover * 12) * blurScale;
+  ctx.fill("evenodd");
+  ctx.stroke();
+  ctx.restore();
+
   // Orbiting motes
+  ctx.shadowBlur = 0;
   if (!reduceMotion) {
-    for (let m = 0; m < 6; m++) {
-      const a = time * (0.6 + m * 0.07) * (0.6 + p.spin * 0.4) + m * 1.05 + p.seed;
-      const d = R * (0.9 + Math.sin(time + m) * 0.1);
+    for (let m = 0; m < T.motes; m++) {
+      const a = time * (0.6 + m * 0.07) * (0.6 + p.spin * 0.4) + m * (6.28 / T.motes) + p.seed;
+      const d = R * (1.15 + Math.sin(time + m) * 0.08);
       ctx.beginPath();
-      ctx.arc(p.x + Math.cos(a) * d, p.y + Math.sin(a) * d * 0.4, 1.8, 0, Math.PI * 2);
+      ctx.arc(p.x + Math.cos(a) * d, p.y + Math.sin(a) * d * 0.45, 1.8, 0, Math.PI * 2);
       ctx.fillStyle = "rgba(" + r + "," + g + "," + b + "," + Math.min(1, 0.6 + hover * 0.4) + ")";
       ctx.fill();
     }
   }
 
-  // Name floating above the portal
+  // Name floating above the portal (two lines when the cell is narrow)
   const bob = reduceMotion ? 0 : Math.sin(time * 1.3 + p.seed) * 3;
   ctx.textAlign = "center";
-  ctx.font = "500 " + (compact ? 15 : 17) + "px 'Segoe UI', system-ui, -apple-system, sans-serif";
-  ctx.fillStyle = "rgba(245, 248, 255, " + Math.min(1, 0.85 + hover * 0.15) + ")";
+  const nameSize = compact ? 12 : 16;
+  ctx.font = "600 " + nameSize + "px 'Segoe UI', system-ui, -apple-system, sans-serif";
+  ctx.fillStyle = "rgba(245, 248, 255, " + Math.min(1, 0.92 + hover * 0.08) + ")";
   ctx.shadowColor = "rgba(" + r + "," + g + "," + b + ",0.9)";
   ctx.shadowBlur = (12 + hover * 10) * blurScale;
-  ctx.fillText(p.name, p.x, p.y - R * 1.45 + bob);
+  const words = p.name.split(" ");
+  const lines = compact && words.length > 1 && ctx.measureText(p.name).width > (W - 58) / 3 - 6
+    ? [words.slice(0, Math.ceil(words.length / 2)).join(" "), words.slice(Math.ceil(words.length / 2)).join(" ")]
+    : [p.name];
+  lines.forEach((ln, k) => ctx.fillText(ln, p.x, p.y - R * 1.5 - (lines.length - 1 - k) * (nameSize + 2) + bob));
 
-  // Tier and field below
+  // Level below: this is the ladder of ambition, so it stays large and bright
   ctx.shadowBlur = 0;
-  ctx.font = (compact ? 10 : 11) + "px 'Segoe UI', system-ui, -apple-system, sans-serif";
-  ctx.fillStyle = "rgba(" + r + "," + g + "," + b + ",0.85)";
-  ctx.fillText(p.tier.toUpperCase() + "  \u00B7  " + p.field.toUpperCase(), p.x, p.y + R * 1.65);
+  ctx.font = "700 " + (compact ? 12 : 13) + "px 'Segoe UI', system-ui, -apple-system, sans-serif";
+  ctx.fillStyle = "rgb(" + r + "," + g + "," + b + ")";
+  ctx.fillText(p.tier.toUpperCase().split("").join(" "), p.x, p.y + R * 1.55 + 14);
 
   ctx.globalAlpha = 1;
 }
 
 function drawFieldLabels() {
-  if (compact) return;
   const labels = ["Developer", "Designer", "Illustrator and Comic Artist"];
   ctx.textAlign = "center";
-  ctx.font = "11px 'Segoe UI', system-ui, -apple-system, sans-serif";
-  ctx.fillStyle = "rgba(122, 132, 166, 0.7)";
+  ctx.font = "700 " + (compact ? 14 : 18) + "px 'Segoe UI', system-ui, -apple-system, sans-serif";
+  ctx.fillStyle = "rgba(240, 244, 255, 0.96)";
   labels.forEach((label, i) => {
-    const rowY = portals[i * 3].y - portals[i * 3].r * 2.3;
-    ctx.fillText(label.toUpperCase(), W / 2, rowY);
+    const rowY = portals[i * 3].y - portals[i * 3].r * 1.2 * 1.5 - (compact ? 58 : 50);
+    const text = label.toUpperCase().split("").join(" ");
+    ctx.fillText(text, gridX + gridW / 2, rowY);
+    const tw = ctx.measureText(text).width;
+    ctx.strokeStyle = "rgba(160, 175, 215, 0.35)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(gridX + gridW / 2 - tw / 2 - 30, rowY - 5); ctx.lineTo(gridX + gridW / 2 - tw / 2 - 10, rowY - 5);
+    ctx.moveTo(gridX + gridW / 2 + tw / 2 + 10, rowY - 5); ctx.lineTo(gridX + gridW / 2 + tw / 2 + 30, rowY - 5);
+    ctx.stroke();
   });
 }
 
@@ -767,6 +868,7 @@ layout();
 arriveFromWorld();
 requestAnimationFrame(frame);
 </script>
+<script src="portfolio-shared.js"></script>
 
 </body>
 </html>

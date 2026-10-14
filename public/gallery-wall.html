@@ -228,6 +228,7 @@
   }
   .frame:hover .view-hint, .frame:focus-visible .view-hint { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 
+  .frame { outline: 2px dashed rgba(28,26,23,.45); outline-offset: 6px; }
   .placard {
     display: grid; grid-template-columns: auto 1fr; column-gap: 14px;
     margin-top: 24px; max-width: 340px;
@@ -404,12 +405,13 @@
 </div>
 
 <a class="return" href="hub-homepage.html" title="Return to the hub"><i aria-hidden="true"></i>Return to hub</a>
-<div class="who">Esosa Osaretin<span>Visual Designer</span></div>
+<div class="who">Esosa Osaretin<span>Designer</span></div>
 <div class="spot" id="spot" aria-hidden="true"></div>
 
 <section class="hero">
   <div>
-    <p class="eyebrow">Sample portfolio &nbsp;·&nbsp; Visual design</p>
+    <p class="eyebrow">Sample portfolio &nbsp;·&nbsp; Designer</p>
+    <p class="smp-legend" style="margin-top:10px"><span class="smp-tag">Sample</span>Dashed outline marks sample content. Yours goes here.</p>
     <h2 class="hero-title" id="heroTitle">Selected Works</h2>
     <p class="hero-sub">Eight pieces, hung slowly. Walk the wall by scrolling, and step closer by selecting any frame.</p>
     <div class="cue" aria-hidden="true"></div>
@@ -826,7 +828,7 @@ var Snd = (function () {
         '<figcaption class="placard">' +
           '<span class="no">' + pad(i + 1) + '</span>' +
           '<span class="ttl">' + esc(p.title) + '</span>' +
-          '<span class="meta">' + esc(p.year) + ' &nbsp;·&nbsp; ' + esc(p.category) + '</span>' +
+          '<span class="meta">' + esc(p.year) + ' &nbsp;·&nbsp; ' + esc(p.category) + ' &nbsp;<span class="smp-tag">Sample</span></span>' +
         '</figcaption>' +
       '</div>';
     wall.appendChild(fig);
@@ -1146,5 +1148,6 @@ var Snd = (function () {
 })();
 </script>
 
+<script src="portfolio-shared.js"></script>
 </body>
 </html>
