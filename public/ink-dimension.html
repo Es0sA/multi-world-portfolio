@@ -226,23 +226,23 @@ var PROJECTS = [
     requestAnimationFrame(frame);
   }
   /* dip pen: variable width ink that reacts to speed, with splatter and a clean page button */
-  var pp = $("#paper"), pc = pp.getContext("2d"), draw = false, lp = null, lw = 4;
-  function psize() { var img = pc.getImageData(0, 0, pp.width, pp.height); pp.width = innerWidth; pp.height = innerHeight; try { pc.putImageData(img, 0, 0); } catch (e) {} }
+  var pp = $("#paper"), pctx = pp.getContext("2d"), draw = false, lp = null, lw = 4;
+  function psize() { var img = pctx.getImageData(0, 0, pp.width, pp.height); pp.width = innerWidth; pp.height = innerHeight; try { pctx.putImageData(img, 0, 0); } catch (e) {} }
   pp.width = innerWidth; pp.height = innerHeight; addEventListener("resize", psize);
   $("#dip").addEventListener("click", function () { draw = !draw; pp.classList.toggle("on", draw); this.classList.toggle("on", draw); this.textContent = draw ? "Put the pen down" : "Dip the pen"; blip(240, 0.12, "triangle"); });
-  pp.addEventListener("pointerdown", function (e) { lp = [e.clientX, e.clientY, performance.now()]; lw = 4; pp.setPointerCapture(e.pointerId); pc.fillStyle = "#111"; pc.beginPath(); pc.arc(e.clientX, e.clientY, 4, 0, 6.28); pc.fill(); });
+  pp.addEventListener("pointerdown", function (e) { lp = [e.clientX, e.clientY, performance.now()]; lw = 4; pp.setPointerCapture(e.pointerId); pctx.fillStyle = "#111"; pctx.beginPath(); pctx.arc(e.clientX, e.clientY, 4, 0, 6.28); pctx.fill(); });
   pp.addEventListener("pointermove", function (e) {
     if (!lp) return; var now = performance.now(), dx = e.clientX - lp[0], dy = e.clientY - lp[1], sp = Math.hypot(dx, dy) / Math.max(1, now - lp[2]);
     var target = Math.max(1.5, 11 - sp * 7); lw += (target - lw) * 0.3;
-    pc.strokeStyle = "#111"; pc.lineCap = "round"; pc.lineWidth = lw; pc.beginPath(); pc.moveTo(lp[0], lp[1]); pc.lineTo(e.clientX, e.clientY); pc.stroke(); lp = [e.clientX, e.clientY, now];
+    pctx.strokeStyle = "#111"; pctx.lineCap = "round"; pctx.lineWidth = lw; pctx.beginPath(); pctx.moveTo(lp[0], lp[1]); pctx.lineTo(e.clientX, e.clientY); pctx.stroke(); lp = [e.clientX, e.clientY, now];
   });
   pp.addEventListener("pointerup", function () { lp = null; });
   $("#splat").addEventListener("click", function () {
     blip(140, 0.3, "sawtooth");
-    for (var k = 0; k < 40; k++) { var a = Math.random() * 6.28, d = Math.random() * Math.min(innerWidth, innerHeight) * 0.4, x = innerWidth / 2 + Math.cos(a) * d, y = innerHeight / 2 + Math.sin(a) * d, r = 1 + Math.random() * (14 - d / 40); pc.fillStyle = "#111"; pc.beginPath(); pc.arc(x, y, Math.max(1, r), 0, 6.28); pc.fill(); }
+    for (var k = 0; k < 40; k++) { var a = Math.random() * 6.28, d = Math.random() * Math.min(innerWidth, innerHeight) * 0.4, x = innerWidth / 2 + Math.cos(a) * d, y = innerHeight / 2 + Math.sin(a) * d, r = 1 + Math.random() * (14 - d / 40); pctx.fillStyle = "#111"; pctx.beginPath(); pctx.arc(x, y, Math.max(1, r), 0, 6.28); pctx.fill(); }
     pp.style.zIndex = 1;
   });
-  $("#dry").addEventListener("click", function () { pc.clearRect(0, 0, pp.width, pp.height); blots = []; blip(200, 0.15); });
+  $("#dry").addEventListener("click", function () { pctx.clearRect(0, 0, pp.width, pp.height); blots = []; blip(200, 0.15); });
   window.WORLD_START = function () { for (var i = 0; i < 6; i++) drop(Math.random() * innerWidth, Math.random() * innerHeight); requestAnimationFrame(frame); };
 
   if (reduce) { intro.remove(); root.classList.remove("portal-in"); start(); }

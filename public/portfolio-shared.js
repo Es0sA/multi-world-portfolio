@@ -85,6 +85,11 @@
     document.getElementById("cm-send").addEventListener("click", function () { this.setAttribute("href", link()); });
     document.addEventListener("keydown", function (e) { if (e.key === "Escape" && back.classList.contains("on")) close(); });
     window.openCommission = open;
+    /* hide the tab while any viewer, lightbox or dialog is open, restore it after */
+    var OPEN = "#lb.open,#viewer.open,#dossier.open,#parts.open,#dlg.on,#notice:not([hidden])";
+    function sync() { tab.style.display = document.querySelector(OPEN) ? "none" : ""; }
+    new MutationObserver(sync).observe(document.body, { attributes: true, subtree: true, attributeFilter: ["class", "hidden"] });
+    sync();
   }
   if (document.body) ready(); else document.addEventListener("DOMContentLoaded", ready);
 })();

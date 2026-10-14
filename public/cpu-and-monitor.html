@@ -111,6 +111,8 @@
  .tm canvas { width: 100%; height: 180px; display: block; cursor: pointer; }
  .tm .hist { height: 110px; }
  .tmnote { font-size: 11px; color: var(--muted); margin-top: 6px; }
+ .tools { position: static; max-width: 360px; margin: 14px auto 0; justify-content: center; }
+ #mon { scroll-margin-top: 76px; }
 
   @media (max-width: 700px) { body { padding-top: 104px !important; } }
 </style>
@@ -128,13 +130,13 @@
   <div class="cpu" id="cpu"><div class="die" id="die"></div></div>
   <div class="panel"><h3>Cooling</h3><div class="gauge"><div class="fan" id="fan"></div><div class="bar"><b id="temp"></b></div><span id="deg">42C</span></div>
    <div class="stats"><div><b id="ghz">3.2</b><span>GHz</span></div><div><b id="pow">45</b><span>Watts</span></div><div><b id="thr">28</b><span>Threads</span></div></div></div>
+  <div class="tools"><button type="button" id="oc">Overclock</button><button type="button" id="ps">Processes</button></div>
   <p style="font-size:12px;color:var(--muted);text-align:center;margin-top:12px">Solid cores are real projects. Dashed outline marks sample content. Yours goes here.</p>
  </div>
  <div><div class="mon" id="mon"><div class="mbar"><span id="mtitle">monitor-01</span><span id="mclock"></span></div><div class="scr" id="scr"></div><div class="logh">Live core log</div><div class="log" id="log"></div></div><div class="stand"></div></div>
 </div>
 <section class="tm"><h3><span>Task manager: core load</span><span id="tmtot">total 0%</span></h3>
  <div class="tmgrid"><div><canvas id="bars" aria-label="Core load bars. Select a bar to load that core."></canvas></div><div><canvas id="hist" class="hist" aria-hidden="true"></canvas><p class="tmnote">Total load, last two minutes. Dashed bars are sample cores. Overclock to watch it climb.</p></div></div></section>
-<div class="tools"><button type="button" id="oc">Overclock</button><button type="button" id="ps">Processes</button></div>
 
 <script>
 (function () {
@@ -264,9 +266,15 @@ var PROJECTS = [
       (sample ? '<div class="smpbox">Sample content. Yours goes here.</div>' : '') +
       '<button type="button" id="more">Open details</button>';
   }
+  /* on narrow screens the monitor sits below the controls, so bring it into view */
+  function revealMon() {
+    if (innerWidth >= 900) return;
+    var top = mon.getBoundingClientRect().top;
+    if (top > 90 || top < 40) window.scrollTo({ top: window.scrollY + top - 76, behavior: WORLD.reduce ? "auto" : "smooth" });
+  }
   function show(i) {
     if (!booted) return;
-    cur = i; clearTimeout(bootTimer);
+    cur = i; clearTimeout(bootTimer); revealMon();
     var p = PROJECTS[i];
     cores.forEach(function (c, j) { c.classList.toggle("on", j === i); });
     $("#mtitle").textContent = "core-" + pad2(i + 1) + " / " + p.n.toLowerCase().replace(/ /g, "-");
@@ -336,13 +344,13 @@ var PROJECTS = [
     if (hot || !booted) return; hot = true;
     cpu.classList.add("hot"); mon.classList.add("glitch"); $("#oc").classList.add("on"); $("#oc").textContent = "Overclocked";
     for (var k = 0; k < 6; k++) setTimeout(function (n) { blip(180 + n * 90, 0.18, "sawtooth"); }, k * 120, k);
-    clearTimeout(bootTimer); addLog("OVERCLOCK engaged: 5.6 GHz", true);
+    clearTimeout(bootTimer); revealMon(); addLog("OVERCLOCK engaged: 5.6 GHz", true);
     scr.innerHTML = '<h2>OVERCLOCK</h2><p>All cores at full load. Fan at full speed. Clock climbing to 5.6 GHz.\nThis is the same energy a client portfolio can have: fast, a little dangerous and memorable.</p><div class="meter"><b style="width:100%"></b></div>';
     setTimeout(function () { mon.classList.remove("glitch"); }, 1300);
     setTimeout(function () { hot = false; cpu.classList.remove("hot"); $("#oc").classList.remove("on"); $("#oc").textContent = "Overclock"; addLog("cooled down, clock back to normal"); if (cur >= 0) show(cur); else scr.innerHTML = '<h2>Cooled down</h2><p>Select a core on the chip or a bar below to load a project.</p>'; blip(300, 0.3, "sine"); }, 4500);
   });
   $("#ps").addEventListener("click", function () {
-    if (!booted) return; blip(500, 0.08); clearTimeout(bootTimer);
+    if (!booted) return; blip(500, 0.08); clearTimeout(bootTimer); revealMon();
     var order = PROJECTS.map(function (p, i) { return i; }).sort(function (a, b) { return load[b] - load[a]; });
     scr.innerHTML = '<h2>Processes</h2><dl class="kv" style="grid-template-columns:1fr 60px">' + order.map(function (i) { return '<dt style="color:var(--fg)">' + (PROJECTS[i].k === "Sample" ? "(sample) " : "") + esc(PROJECTS[i].n) + '</dt><dd>' + Math.round(load[i]) + '%</dd>'; }).join("") + '</dl>';
     cur = -1; cores.forEach(function (c) { c.classList.remove("on"); }); $("#mtitle").textContent = "task-list";
