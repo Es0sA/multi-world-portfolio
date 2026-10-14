@@ -326,15 +326,15 @@ const DEFAULT_HINT = isTouch ? "Tap a portal to enter." : "Move toward a portal 
 
 // Worlds with a url are built. The others play the open and close animation, then say so.
 const WORLDS = [
-  { id: "terminal-office", name: "Terminal Office",      field: "Developer",   tier: "Regular", color: [93, 255, 138],  url: null },
-  { id: "cpu-and-monitor", name: "CPU and Monitor",      field: "Developer",   tier: "Crazy",   color: [255, 157, 77],  url: null },
+  { id: "terminal-office", name: "Terminal Office",      field: "Developer",   tier: "Regular", color: [93, 255, 138],  url: "terminal-office.html" },
+  { id: "cpu-and-monitor", name: "CPU and Monitor",      field: "Developer",   tier: "Crazy",   color: [255, 157, 77],  url: "cpu-and-monitor.html" },
   { id: "circuit-city",    name: "Circuit City",         field: "Developer",   tier: "Beyond",  color: [77, 166, 255],  url: "circuit-city.html" },
   { id: "gallery-wall",    name: "Gallery Wall",         field: "Designer",    tier: "Regular", color: [240, 240, 240], url: "gallery-wall.html" },
-  { id: "sketchbook",      name: "Sketchbook Explosion", field: "Designer",    tier: "Crazy",   color: [255, 216, 77],  url: null },
-  { id: "paint-universe",  name: "Paint Universe",       field: "Designer",    tier: "Beyond",  color: [255, 111, 216], url: null },
+  { id: "sketchbook",      name: "Sketchbook Explosion", field: "Designer",    tier: "Crazy",   color: [255, 216, 77],  url: "sketchbook-explosion.html" },
+  { id: "paint-universe",  name: "Paint Universe",       field: "Designer",    tier: "Beyond",  color: [255, 111, 216], url: "paint-universe.html" },
   { id: "comic-page",      name: "Comic Page",           field: "Illustrator", tier: "Regular", color: [255, 77, 109],  url: "comic-page.html" },
-  { id: "pop-up-book",     name: "Pop-Up Book",          field: "Illustrator", tier: "Crazy",   color: [180, 140, 255], url: null },
-  { id: "ink-dimension",   name: "Ink Dimension",        field: "Illustrator", tier: "Beyond",  color: [154, 163, 184], url: null }
+  { id: "pop-up-book",     name: "Pop-Up Book",          field: "Illustrator", tier: "Crazy",   color: [180, 140, 255], url: "pop-up-book.html" },
+  { id: "ink-dimension",   name: "Ink Dimension",        field: "Illustrator", tier: "Beyond",  color: [154, 163, 184], url: "ink-dimension.html" }
 ];
 
 let W = 0, H = 0, dpr = 1, compact = false, topPad = 0;

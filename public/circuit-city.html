@@ -51,7 +51,7 @@ body { background: transparent; }
 button { font: inherit; color: inherit; }
 :focus-visible { outline: 2px solid var(--cy); outline-offset: 2px; }
 
-#world { position: fixed; inset: 0; background: var(--bg); overflow: hidden; }
+#world { position: fixed; left: 0; top: 0; width: 100%; height: 100%; height: var(--vh, 100dvh); background: var(--bg); overflow: hidden; }
 #gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; outline: none; }
 #gl.grabbing { cursor: grabbing; }
 #gl.pointing { cursor: pointer; }
@@ -215,7 +215,7 @@ html.iris-on #iris { display: block; }
 
   <header class="bar">
     <a class="return" href="hub-homepage.html">Return to hub</a>
-    <div class="who"><b>Your Name</b>Software Developer</div>
+    <div class="who"><b>Esosa Osaretin</b>Software Developer</div>
   </header>
 
   <div class="hint" id="hint"></div>
@@ -542,10 +542,10 @@ var IO = {
   about: 'Tell me about your work and what you want it to say. I will reply with questions, a rough plan and an honest estimate.',
   points: ['A short brief is fine. A paragraph and a few links is plenty.', 'Fixed-scope builds and ongoing work both work.', 'Everything is documented so you can take it over later.'],
   arch: ['Your brief', 'Reply in 24 h', 'Plan and estimate', 'Build', 'Handover'],
-  code: ['To: hello@example.com', 'Subject: My portfolio', '', 'My work:  links or files', 'My taste: what you like', 'Deadline: when you need it'],
-  log: ['$ ping hello@example.com', 'reply from hello@example.com: time < 24 h', '--- 1 packet sent, 1 received'],
+  code: ['To: esosaosaretin@gmail.com', 'Subject: My portfolio', '', 'My work:  links or files', 'My taste: what you like', 'Deadline: when you need it'],
+  log: ['$ ping esosaosaretin@gmail.com', 'reply from esosaosaretin@gmail.com: time < 24 h', '--- 1 packet sent, 1 received'],
   timeline: [['Day 0', 'You send a brief'], ['Day 1', 'Questions and a rough plan'], ['Day 3', 'Estimate and start date']],
-  links: { email: 'hello@example.com' }
+  links: { email: 'esosaosaretin@gmail.com' }
 };
 </script>
 
@@ -787,7 +787,9 @@ function initRenderer() {
 }
 
 function resize() {
-  W = window.innerWidth; H = window.innerHeight;
+  var vv = window.visualViewport;
+  W = Math.round(vv && vv.scale === 1 ? vv.width : window.innerWidth); H = Math.round(vv && vv.scale === 1 ? vv.height : window.innerHeight);
+  document.documentElement.style.setProperty('--vh', H + 'px');
   DPR = Math.min(window.devicePixelRatio || 1, isTouch ? 1.75 : 2);
   labc.width = Math.round(W * DPR); labc.height = Math.round(H * DPR);
   mini.width = Math.round(120 * DPR); mini.height = Math.round(80 * DPR);
@@ -919,7 +921,7 @@ function ihsTexture() {
     g.strokeStyle = 'rgba(40,50,70,0.55)'; g.lineWidth = 4; g.strokeRect(30, 30, 452, 452);
     g.fillStyle = 'rgba(30,38,56,0.85)'; g.textAlign = 'center'; g.textBaseline = 'middle';
     g.font = '700 84px ui-monospace, Menlo, Consolas, monospace'; g.fillText('CORE', 256, 220);
-    g.font = '500 30px ui-monospace, Menlo, Consolas, monospace'; g.fillText('YOUR NAME', 256, 296);
+    g.font = '500 30px ui-monospace, Menlo, Consolas, monospace'; g.fillText('ESOSA OSARETIN', 256, 296);
     g.font = '500 22px ui-monospace, Menlo, Consolas, monospace'; g.fillText('CPU-0001  /  PORTFOLIO', 256, 352);
     g.fillStyle = 'rgba(30,38,56,0.8)'; g.beginPath(); g.moveTo(40, 40); g.lineTo(90, 40); g.lineTo(40, 90); g.fill();
   });
@@ -2065,6 +2067,10 @@ if (hasGL) {
 }
 resize();
 window.addEventListener('resize', resize);
+window.addEventListener('orientationchange', function () { setTimeout(resize, 250); });
+window.addEventListener('pageshow', function () { resize(); setTimeout(resize, 300); });
+if (window.visualViewport) window.visualViewport.addEventListener('resize', resize);
+setTimeout(resize, 400); setTimeout(resize, 1500);
 if (hasGL) {
   camS.dist = W < 720 ? 30 : 34;
   clampCam(); applyCam();

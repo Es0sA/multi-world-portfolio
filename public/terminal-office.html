@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#06100a">
+<title>Terminal Office | Esosa Osaretin</title>
+<script>
+  // Arriving through the hub's portal: start filled with the portal color.
+  (function () {
+    var q = new URLSearchParams(location.search);
+    if (!q.get("portal")) return;
+    var c = (q.get("c") || "93,255,138").split(",").map(Number);
+    if (c.length !== 3 || c.some(isNaN)) c = [93,255,138];
+    var h = document.documentElement;
+    h.classList.add("portal-in");
+    h.style.setProperty("--pc", c.join(","));
+  })();
+</script>
+<style>
+  :root { --bg:#06100a; --fg:#b8ffcb; --accent:#5dff8a; --muted:#3c8a56; --font:ui-monospace,'SF Mono',Menlo,Consolas,monospace; --pc:93,255,138; }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { background: var(--bg); color: var(--fg); font-family: var(--font); }
+  a { color: inherit; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  .return { position: fixed; z-index: 60; top: 12px; left: 12px; padding: 8px 12px; font-size: 13px; text-decoration: none; background: var(--bg); color: var(--fg); border: 1px solid var(--fg); }
+  .who { position: fixed; z-index: 60; top: 12px; right: 12px; text-align: right; font-size: 12px; line-height: 1.3; background: var(--bg); padding: 6px 10px; border: 1px solid var(--muted); }
+  .who b { display: block; font-size: 14px; }
+  .tag { display: inline-block; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 2px 7px; border: 1px solid currentColor; }
+  .tag.sample { opacity: .75; }
+  /* detail dialog */
+  .dlg { position: fixed; inset: 0; z-index: 200; display: none; align-items: center; justify-content: center; padding: 16px; background: rgba(0,0,0,.6); }
+  .dlg.on { display: flex; }
+  .dlg .card { max-width: 460px; width: 100%; padding: 22px; background: var(--bg); color: var(--fg); border: 2px solid var(--accent); max-height: 88vh; overflow: auto; }
+  .dlg h2 { font-size: 24px; margin: 8px 0; }
+  .dlg p { line-height: 1.5; margin: 8px 0; }
+  .dlg .row { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+  .dlg .row a, .dlg .row button { padding: 9px 14px; border: 1px solid var(--accent); background: transparent; text-decoration: none; font-size: 14px; }
+  .dlg .row .primary { background: var(--accent); color: var(--bg); }
+  /* intro */
+  .intro { position: fixed; inset: 0; z-index: 500; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; text-align: center; background: var(--bg); cursor: pointer; transition: opacity .6s; padding: 24px; }
+  .intro.leave { opacity: 0; pointer-events: none; }
+  .intro h1 { font-size: clamp(30px, 8vw, 64px); }
+  .intro .tap { font-weight: 800; letter-spacing: .12em; text-transform: uppercase; animation: pulse 1.4s ease-in-out infinite; color: var(--accent); }
+  @keyframes pulse { 50% { opacity: .35; } }
+  /* portal travel */
+  html.portal-in { background: rgb(var(--pc)); }
+  .iris { display: none; position: fixed; left: 50%; top: 50%; width: 0; height: 0; border-radius: 50%; transform: translate(-50%, -50%);
+    box-shadow: 0 0 0 300vmax rgb(var(--pc)), inset 0 0 50px rgba(0,0,0,.22); pointer-events: none; z-index: 9999; }
+  html.portal-in .iris, html.iris-on .iris { display: block; }
+  .iris::before, .iris::after { content: ""; position: absolute; border-radius: 50%; border: 3px solid transparent; animation: irisSpin 1s linear infinite; }
+  .iris::before { inset: -7px; border-top-color: rgba(var(--ring),.8); border-left-color: rgba(var(--ring),.35); }
+  .iris::after { inset: -17px; border-bottom-color: rgba(var(--ring),.5); border-right-color: rgba(var(--ring),.2); animation-direction: reverse; animation-duration: 1.6s; }
+  @keyframes irisSpin { to { transform: rotate(360deg); } }
+  html.intro-lock, html.intro-lock body { overflow: hidden; }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+ body { padding: 64px 12px 12px; }
+ .desk { max-width: 860px; margin: 0 auto; border: 2px solid var(--accent); border-radius: 10px; box-shadow: 0 0 40px rgba(93,255,138,.18); background: #040a06; display: flex; flex-direction: column; height: calc(100vh - 80px); height: calc(100dvh - 80px); }
+ .bar { padding: 6px 12px; border-bottom: 1px solid var(--muted); font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; }
+ #out { flex: 1; overflow: auto; padding: 12px; font-size: 14px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
+ #out .p { color: var(--accent); }
+ #out .dim { color: var(--muted); }
+ #out a, #out .cmd { color: var(--accent); text-decoration: underline; cursor: pointer; background: none; border: 0; font: inherit; padding: 0; }
+ .line { display: flex; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--muted); }
+ .line span { color: var(--accent); }
+ #in { flex: 1; background: transparent; border: 0; outline: 0; color: var(--fg); font: inherit; font-size: 16px; min-width: 0; }
+ .chips { display: flex; gap: 6px; flex-wrap: wrap; padding: 0 12px 10px; }
+ .chips button { background: transparent; border: 1px solid var(--muted); color: var(--accent); padding: 4px 10px; font-size: 12px; }
+ .crt { pointer-events: none; position: fixed; inset: 0; z-index: 40; background: repeating-linear-gradient(0deg, rgba(0,0,0,.14) 0 1px, transparent 1px 3px); }
+ .lamp { position: fixed; right: -60px; bottom: -60px; width: 240px; height: 240px; border-radius: 50%; background: radial-gradient(circle, rgba(255,214,120,.14), transparent 70%); pointer-events: none; }
+
+</style>
+</head>
+<body>
+<div class="iris" id="iris" aria-hidden="true"></div>
+<noscript><p style="padding:120px 24px;text-align:center">This world needs JavaScript turned on. <a href="hub-homepage.html">Return to the hub</a>.</p></noscript>
+<a class="return" href="hub-homepage.html" title="Return to the hub">Return to hub</a>
+<div class="who"><b>Esosa Osaretin</b>Developer</div>
+<div class="intro" id="intro"><h1>Terminal Office</h1><div>A desk, a lamp and one very patient terminal.</div><div class="tap">Tap to open</div></div>
+<div class="dlg" id="dlg"><div class="card" id="dlgcard"></div></div>
+
+<div class="crt"></div><div class="lamp"></div>
+<div class="desk"><div class="bar"><span>esosa@office:~</span><span id="clock"></span></div>
+<div id="out" aria-live="polite"></div>
+<div class="chips" id="chips"></div>
+<form class="line" id="f"><span>$</span><input id="in" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Command"></form></div>
+
+<script>
+(function () {
+
+var PROJECTS = [
+ {n:"CAS CV Builder",k:"Real",t:"Web app",d:"A CV builder with a login, live preview and PDF export.",u:"https://github.com/Es0sA/cascv"},
+ {n:"CAS Energy",k:"Real",t:"Marketplace",d:"A diesel marketplace MVP grown into a real product (CAS Diesel).",u:"https://github.com/Es0sA/cas-diesel"},
+ {n:"Synapse Flow",k:"Real",t:"Tool",d:"A workflow project. Source is private, so there is no public link yet.",u:""},
+ {n:"Website Cloner",k:"Real",t:"CLI tool",d:"A command line tool that clones a public website to a folder. MIT licence.",u:"https://github.com/es0sa/website-cloner"},
+ {n:"Elusive Button",k:"Real",t:"Prank",d:"A labelled prank: a button that will not be pressed. Not a real portal.",u:"https://github.com/Es0sA/humanitarian-relief-grant"},
+ {n:"AI Lab",k:"Real",t:"Training",d:"Training materials for agentic AI.",u:"https://github.com/Es0sA/ai-lab"},
+ {n:"Comic Site",k:"Real",t:"Website",d:"A test site built for Mountorama Studio.",u:"https://github.com/Es0sA/comic-site"},
+ {n:"Mountorama Studio",k:"Real",t:"Website",d:"A studio owned by Evans. I build the website.",u:"https://github.com/Es0sA/mountorama-studio"},
+ {n:"Ledgerline",k:"Sample",t:"Finance app",d:"A sample bookkeeping dashboard, made up to show how a client's product could look.",u:""},
+ {n:"Tidewatch",k:"Sample",t:"Data app",d:"A sample coastal monitoring page. All content is invented.",u:""},
+ {n:"Stitchbook",k:"Sample",t:"Shop",d:"A sample craft shop front. All content is invented.",u:""},
+ {n:"Pathfinder",k:"Sample",t:"Mobile app",d:"A sample trip planner. All content is invented.",u:""},
+ {n:"Echo Chamber",k:"Sample",t:"Audio",d:"A sample podcast hub. All content is invented.",u:""},
+ {n:"Greenhouse OS",k:"Sample",t:"IoT",d:"A sample plant control panel. All content is invented.",u:""}
+];
+
+  var WORLD_ID = "terminal-office", EMAIL = "esosaosaretin@gmail.com", NAME = "Esosa Osaretin";
+  function $(s, r) { return (r || document).querySelector(s); }
+  function $$(s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
+  var reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* sound: short generated blips, follows the hub's saved choice */
+  var ac = null;
+  function soundOn() { try { return localStorage.getItem("cas-portfolio-sound") === "on"; } catch (e) { return false; } }
+  function blip(f, d, type) {
+    if (!soundOn()) return;
+    try {
+      ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+      if (ac.state === "suspended") ac.resume();
+      var o = ac.createOscillator(), g = ac.createGain(), t = ac.currentTime;
+      o.type = type || "sine"; o.frequency.value = f || 520;
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.12, t + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + (d || 0.12));
+      o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + (d || 0.12) + 0.02);
+    } catch (e) {}
+  }
+
+  /* detail dialog */
+  var dlg = $("#dlg"), card = $("#dlgcard");
+  function openDetail(p) {
+    blip(660, 0.14);
+    card.innerHTML = '<span class="tag ' + (p.k === "Sample" ? "sample" : "") + '">' + (p.k === "Sample" ? "Sample project" : "Real project") + '</span>' +
+      '<h2>' + esc(p.n) + '</h2><p><b>' + esc(p.t) + '</b></p><p>' + esc(p.d) + '</p>' +
+      (p.k === "Sample" ? '<p><i>This is a sample. The content is invented to show how your own work could be presented.</i></p>' : '') +
+      '<div class="row">' + (p.u ? '<a class="primary" href="' + esc(p.u) + '" target="_blank" rel="noopener">Open project</a>' : '') +
+      '<button type="button" id="dlgx">Close</button></div>';
+    dlg.classList.add("on");
+    $("#dlgx").addEventListener("click", closeDetail);
+  }
+  function closeDetail() { dlg.classList.remove("on"); blip(330, 0.1); }
+  dlg.addEventListener("click", function (e) { if (e.target === dlg) closeDetail(); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeDetail(); });
+
+  /* portal travel */
+  var root = document.documentElement, iris = $("#iris");
+  var qs = new URLSearchParams(location.search), arrived = qs.has("portal");
+  var pc = (qs.get("c") || "").split(",").map(Number);
+  if (pc.length !== 3 || pc.some(isNaN)) pc = [93,255,138];
+  var ox = parseFloat(qs.get("x")), oy = parseFloat(qs.get("y"));
+  if (!isFinite(ox)) ox = 0.5; if (!isFinite(oy)) oy = 0.5;
+  var opx = parseFloat(qs.get("px")), opy = parseFloat(qs.get("py"));
+  function origin() {
+    var w = innerWidth, h = innerHeight;
+    if (isFinite(opx) && isFinite(opy)) return { x: Math.max(0, Math.min(w, opx)), y: Math.max(0, Math.min(h, opy)) };
+    return { x: ox * w, y: oy * h };
+  }
+  var lum = 0.299 * pc[0] + 0.587 * pc[1] + 0.114 * pc[2];
+  root.style.setProperty("--pc", pc.join(","));
+  root.style.setProperty("--ring", lum > 150 ? "28,26,23" : "255,255,255");
+  if (arrived && history.replaceState) history.replaceState(null, "", location.pathname);
+  var easeIO = function (t) { return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2; };
+  function run(dur, fn, done) {
+    var t0 = performance.now();
+    (function step(now) { var t = Math.min(1, (now - t0) / dur); fn(t); if (t < 1) requestAnimationFrame(step); else if (done) done(); })(t0);
+  }
+  function setIris(x, y, D) { iris.style.left = x + "px"; iris.style.top = y + "px"; iris.style.width = D + "px"; iris.style.height = D + "px"; }
+  function dmax(x, y) { return 2 * Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight + 160 - y)) + 60; }
+  var leaving = false;
+  function leave(href) {
+    if (leaving) return; leaving = true; blip(300, 0.2);
+    if (reduce) { location.href = href; return; }
+    var o = origin(), big = dmax(o.x, o.y);
+    setIris(o.x, o.y, big); root.classList.add("iris-on", "intro-lock");
+    run(1250, function (t) { setIris(o.x, o.y, big * (1 - easeIO(t))); }, function () { location.href = href; });
+  }
+  $$('a[href="hub-homepage.html"]').forEach(function (a) {
+    a.addEventListener("click", function (e) {
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+      e.preventDefault(); leave("hub-homepage.html?from=" + WORLD_ID + "&c=" + pc.join(","));
+    });
+  });
+  addEventListener("pageshow", function (e) { if (e.persisted) { leaving = false; root.classList.remove("iris-on", "intro-lock"); } });
+
+  var intro = $("#intro"), started = false;
+  function start() { if (started) return; started = true; if (window.WORLD_START) window.WORLD_START(); }
+  function liftCurtain() {
+    intro.classList.add("leave"); blip(520, 0.2);
+    setTimeout(function () { root.classList.remove("intro-lock"); start(); }, 500);
+    setTimeout(function () { intro.remove(); }, 1200);
+  }
+  window.WORLD = { PROJECTS: PROJECTS, openDetail: openDetail, blip: blip, $: $, $$: $$, esc: esc, reduce: reduce, EMAIL: EMAIL, NAME: NAME };
+
+  var out = $("#out"), inp = $("#in"), hist = [], hi = 0;
+  function say(h) { var d = document.createElement("div"); d.innerHTML = h; out.appendChild(d); out.scrollTop = out.scrollHeight; }
+  function cmdBtn(c, label) { return '<button class="cmd" data-c="' + c + '">' + (label || c) + '</button>'; }
+  var C = {
+    help: function () { say('Commands: ' + ['ls','real','samples','about','contact','clear'].map(function (c) { return cmdBtn(c); }).join(', ') + '. Or type <span class="p">open N</span>.'); },
+    ls: function () { say(PROJECTS.map(function (p, i) { return (i < 9 ? ' ' : '') + (i + 1) + '  ' + cmdBtn('open ' + (i + 1), esc(p.n)) + ' <span class="dim">[' + p.k + ']</span>'; }).join('\n')); },
+    real: function () { say(PROJECTS.map(function (p, i) { return p.k === "Real" ? (i + 1) + '  ' + cmdBtn('open ' + (i + 1), esc(p.n)) : ''; }).filter(Boolean).join('\n')); },
+    samples: function () { say('<span class="dim">Sample projects are invented, to show how your work could look.</span>\n' + PROJECTS.map(function (p, i) { return p.k === "Sample" ? (i + 1) + '  ' + cmdBtn('open ' + (i + 1), esc(p.n)) : ''; }).filter(Boolean).join('\n')); },
+    about: function () { say(NAME + ', developer. I build web apps, bots and tools, and I can present your work the same way this office presents mine.'); },
+    contact: function () { say('Email: <a href="mailto:' + EMAIL + '">' + EMAIL + '</a>'); },
+    clear: function () { out.innerHTML = ""; },
+    open: function (a) {
+      var p = PROJECTS[parseInt(a, 10) - 1];
+      if (!p) { say('<span class="dim">No such project. Try ls.</span>'); return; }
+      say('Opening ' + esc(p.n) + '...'); openDetail(p);
+    }
+  };
+  function exec(line) {
+    line = line.trim(); if (!line) return;
+    say('<span class="p">$</span> ' + esc(line)); blip(700, 0.04, "square");
+    var parts = line.split(/\s+/), c = parts[0].toLowerCase();
+    if (C[c]) C[c](parts[1]); else say('<span class="dim">command not found: ' + esc(c) + '. Try help.</span>');
+  }
+  $("#f").addEventListener("submit", function (e) { e.preventDefault(); hist.push(inp.value); hi = hist.length; exec(inp.value); inp.value = ""; });
+  inp.addEventListener("keydown", function (e) {
+    if (e.key === "ArrowUp" && hist.length) { hi = Math.max(0, hi - 1); inp.value = hist[hi]; e.preventDefault(); }
+    if (e.key === "ArrowDown") { hi = Math.min(hist.length, hi + 1); inp.value = hist[hi] || ""; e.preventDefault(); }
+  });
+  out.addEventListener("click", function (e) { var b = e.target.closest(".cmd"); if (b) exec(b.getAttribute("data-c")); });
+  $("#chips").innerHTML = ["help","ls","real","samples","about","contact"].map(function (c) { return '<button type="button" data-c="' + c + '">' + c + '</button>'; }).join("");
+  $("#chips").addEventListener("click", function (e) { var b = e.target.closest("button"); if (b) exec(b.getAttribute("data-c")); });
+  setInterval(function () { var d = new Date(); $("#clock").textContent = d.toTimeString().slice(0, 5); }, 1000);
+  window.WORLD_START = function () {
+    say('<span class="dim">Terminal Office v1. Welcome.</span>');
+    C.about(); say(''); C.help(); say(''); C.ls();
+  };
+
+  if (reduce) { intro.remove(); root.classList.remove("portal-in"); start(); }
+  else if (arrived) {
+    intro.remove();
+    var o = origin(), big = dmax(o.x, o.y);
+    root.classList.add("intro-lock"); setIris(o.x, o.y, 0);
+    setTimeout(start, 650);
+    setTimeout(function () { run(1600, function (t) { setIris(o.x, o.y, big * easeIO(t)); }, function () { root.classList.remove("portal-in", "intro-lock"); }); }, 250);
+  } else {
+    root.classList.add("intro-lock");
+    intro.addEventListener("click", liftCurtain);
+    addEventListener("keydown", function k(e) { if (e.key === "Escape") return; if (!started) { liftCurtain(); removeEventListener("keydown", k); } });
+  }
+})();
+</script>
+</body>
+</html>
